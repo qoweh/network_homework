@@ -51,10 +51,30 @@ public class EthernetLayer implements BaseLayer {
 
     @Override
     public boolean Receive(byte[] input) {
-        // filter by EtherType and destination (allow broadcast or any for robustness)
+        // L2 header must exist
         if (input.length < 14) return false;
+        // EtherType filter
         int et = ((input[12] & 0xFF) << 8) | (input[13] & 0xFF);
         if (et != (etherType & 0xFFFF)) return false;
+
+        // Extract MACs
+        boolean isBroadcast = true;
+        for (int i = 0; i < 6; i++) {
+            if ((input[i] & 0xFF) != 0xFF) { isBroadcast = false; break; }
+        }
+        boolean dstIsMe = true;
+        for (int i = 0; i < 6; i++) {
+            if (input[i] != srcMac[i]) { dstIsMe = false; break; }
+        }
+        boolean srcIsMe = true;
+        for (int i = 0; i < 6; i++) {
+            if (input[6 + i] != srcMac[i]) { srcIsMe = false; break; }
+        }
+
+        // Drop frames we sent ourselves
+        if (srcIsMe) return false;
+        // Accept only frames destined to us or broadcast
+        if (!(dstIsMe || isBroadcast)) return false;
 
         // decapsulate and deliver up
         byte[] payload = Arrays.copyOfRange(input, 14, input.length);

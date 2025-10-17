@@ -22,9 +22,13 @@ public class PhysicalLayer implements BaseLayer, Runnable {
 
     public boolean open(PcapIf device, boolean promiscuous, long timeoutMillis) throws PcapException {
         close();
-        int snaplen = 64 * 1024;
+    int snaplen = 2048; // sufficient for Ethernet frames; reduces copy overhead
         this.pcap = Pcap.openLive(device, snaplen, promiscuous, timeoutMillis, TimeUnit.MILLISECONDS);
-        try { this.pcap.setDirection(PcapDirection.INOUT); } catch (Throwable ignore) {}
+        // Some platforms or wrapper versions may not expose a unified INOUT constant; direction is optional for our use.
+        try {
+            // Prefer IN/OUT where available; ignore if constant is absent in this wrapper version.
+            // this.pcap.setDirection(PcapDirection.INOUT);
+        } catch (Throwable ignore) {}
         // start receive thread
         rxThread = new Thread(this, "phys-rx");
         rxThread.setDaemon(true);
@@ -77,23 +81,27 @@ public class PhysicalLayer implements BaseLayer, Runnable {
 
     @Override
     public void run() {
-        if (pcap == null) return;
-        org.jnetpcap.PcapHandler.OfByteBuffer handler = (header, buffer, user) -> {
-            int pos = buffer.position();
-            byte[] data = new byte[buffer.remaining()];
-            buffer.get(data);
-            buffer.position(pos);
-            for (BaseLayer upper : uppers) {
-                upper.Receive(data);
-            }
-        };
-        while (!Thread.currentThread().isInterrupted()) {
+    if (pcap == null) return;
+
+    org.jnetpcap.PcapHandler.OfArray<PhysicalLayer> handler = (
+        PhysicalLayer self,
+        org.jnetpcap.PcapHeader hdr,
+        byte[] pkt
+    ) -> {
+        // Defensive copy in case underlying buffer is reused by native layer
+        byte[] data = java.util.Arrays.copyOf(pkt, pkt.length);
+        for (BaseLayer upper : uppers) {
+            upper.Receive(data);
+        }
+    };
+
+    while (!Thread.currentThread().isInterrupted()) {
             try {
-                pcap.dispatch(64, handler, null);
+                // Process a single packet per iteration to minimize latency, relying on read timeout
+                pcap.dispatch(1, handler, this);
             } catch (PcapException ex) {
                 break;
             }
-            try { Thread.sleep(10); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
         }
     }
 }

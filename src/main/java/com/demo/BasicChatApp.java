@@ -132,7 +132,11 @@ public class BasicChatApp {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				String dst = tf_DstMac.getText().trim();
-				if (!dst.isEmpty()) {
+				if (dst.isEmpty()) {
+					// Default to broadcast if not provided
+					Arrays.fill(dstMacAddress, (byte)0xFF);
+					ta.append("목적지 MAC 미입력: 브로드캐스트로 설정합니다 (FF:FF:FF:FF:FF:FF)\n");
+				} else {
 					try {
 						String[] dstBytes = dst.split(":");
 						if (dstBytes.length != 6) throw new IllegalArgumentException("MAC 형식 오류");
@@ -165,8 +169,8 @@ public class BasicChatApp {
 				chatLayer.SetUnderLayer(ethLayer);  ethLayer.SetUpperLayer(chatLayer);
 				ethLayer.SetUnderLayer(phyLayer);   phyLayer.SetUpperLayer(ethLayer);
 
-				boolean promiscuous = true;
-				long timeoutMillis = Duration.ofSeconds(10).toMillis();
+				boolean promiscuous = false; // capture only destined/broadcast frames to reduce noise
+				long timeoutMillis = Duration.ofMillis(200).toMillis(); // shorter read timeout for snappier receive
 				try {
 					phyLayer.open(selectedDev, promiscuous, timeoutMillis);
 					ta.append("장치 활성화 완료: " + selectedDev.name() + "\n");
