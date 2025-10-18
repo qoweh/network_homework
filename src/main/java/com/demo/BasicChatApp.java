@@ -136,8 +136,8 @@ public class BasicChatApp {
 		System.out.println("║                  패킷 기반 채팅 프로그램 (Packet Chat v1.0)                   ║");
 		System.out.println("║                                                                               ║");
 		System.out.println("║  • EtherType: 0xFFFF (사용자 정의 프로토콜)                                   ║");
-		System.out.println("║  • 계층 구조: ChatApp → Ethernet → Physical (jNetPcap)                       ║");
-		System.out.println("║  • MAC 필터링: 자기 수신 방지 + 브로드캐스트/유니캐스트 지원                 ║");
+		System.out.println("║  • 계층 구조: ChatApp → Ethernet → Physical (jNetPcap)                        ║");
+		System.out.println("║  • MAC 필터링: 자기 수신 방지 + 브로드캐스트/유니캐스트 지원                  ║");
 		System.out.println("╚═══════════════════════════════════════════════════════════════════════════════╝");
 		System.out.println();
 	}
@@ -409,73 +409,6 @@ public class BasicChatApp {
 
 		// Wire layers together
 		// 4. 계층 연결 (상위 ↔ 하위)
-		chatLayer.SetUnderLayer(ethernetLayer);
-		ethernetLayer.SetUpperLayer(chatLayer);
-		ethernetLayer.SetUnderLayer(physicalLayer);
-		physicalLayer.SetUpperLayer(ethernetLayer);
-	}
-
-	/**
-	 * PhysicalLayer 오픈 (패킷 캡처 시작)
-	 * 
-	 * 파라미터:
-	 * - selectedDevice: 선택한 네트워크 인터페이스
-	 * - PROMISCUOUS_MODE (false): 비무차별 모드 (성능↑)
-	 * - READ_TIMEOUT_MS (200ms): 낮은 지연 시간
-	 * 
-	 * 성공 시:
-	 * - 백그라운드 스레드에서 패킷 수신 시작
-	 * - EtherType 0xFFFF 패킷만 필터링하여 수신
-	 */	private static void parseDestinationMac() {
-		String destinationMacText = destinationMacField.getText().trim();
-		
-		if (destinationMacText.isEmpty()) {
-			Arrays.fill(destinationMacAddress, (byte) 0xFF);
-			logToUI("목적지 MAC 미입력: 브로드캐스트로 설정합니다 (FF:FF:FF:FF:FF:FF)");
-			return;
-		}
-
-		try {
-			String[] macBytes = destinationMacText.split(":");
-			if (macBytes.length != 6) {
-				throw new IllegalArgumentException("MAC 주소는 6개의 바이트여야 합니다");
-			}
-
-			for (int i = 0; i < 6; i++) {
-				String segment = macBytes[i].trim();
-				if (segment.length() == 1) {
-					segment = "0" + segment; // Pad single digit
-				}
-				destinationMacAddress[i] = (byte) Integer.parseInt(segment, 16);
-			}
-		} catch (Exception ex) {
-			logToUI("목적지 MAC 파싱 실패: " + ex.getMessage());
-			throw new RuntimeException("Invalid MAC address format");
-		}
-	}
-
-	private static void initializeLayers() {
-		// Close existing physical layer if any
-		if (physicalLayer != null) {
-			physicalLayer.close();
-		}
-
-		// Create layers
-		chatLayer = new ChatAppLayer(message -> 
-			SwingUtilities.invokeLater(() -> {
-				logToUI("[RCVD] " + message);
-				textArea.setCaretPosition(textArea.getDocument().getLength());
-			})
-		);
-
-		ethernetLayer = new EthernetLayer();
-		ethernetLayer.setSrcMac(Arrays.copyOf(myMacAddress, 6));
-		ethernetLayer.setDstMac(Arrays.copyOf(destinationMacAddress, 6));
-		ethernetLayer.setEtherType(ETHER_TYPE);
-
-		physicalLayer = new PhysicalLayer();
-
-		// Wire layers together
 		chatLayer.SetUnderLayer(ethernetLayer);
 		ethernetLayer.SetUpperLayer(chatLayer);
 		ethernetLayer.SetUnderLayer(physicalLayer);

@@ -35,20 +35,19 @@ A simple layered chat over raw Ethernet frames using jNetPcap 2.3.1 (JDK21). Mes
 ## Build
 
 ```bash
-mvn -DskipTests compile
+mvn clean compile
 ```
 
 ## Run
 
-Replace the `-Djava.library.path` with the folder that holds the jNetPcap native .dylib files.
-
 ```bash
-java --enable-preview \
-     --enable-native-access=ALL-UNNAMED \
-     -cp target/classes:lib/jnetpcap-wrapper-2.3.1-jdk21.jar \
-     -Djava.library.path=/path/to/jnetpcap/native/libs \
-     com.demo.BasicChatApp
+mvn exec:exec
 ```
+
+The `exec:exec` plugin is configured to run with:
+- `--enable-preview`: Java 21 preview features
+- `--enable-native-access=ALL-UNNAMED`: Allow native library access for jNetPcap
+- `-Djava.library.path=${project.basedir}/lib/native`: Path to native jNetPcap libraries (.dylib/.so/.dll)
 
 ## Usage
 
@@ -68,16 +67,10 @@ java --enable-preview \
 - **Destination filtering**: only frames destined to your MAC or broadcast are accepted; other unicast traffic is ignored.
 - **Non-promiscuous mode by default**: reduces noise and improves performance; only frames addressed to this host or broadcast are captured.
 
-## Wireshark / tcpdump Filters
+## Wireshark
 
 - Wireshark display filter:
   - `eth.type == 0xFFFF`
-- tcpdump example:
-
-```bash
-sudo tcpdump -i en0 -XX 'ether proto 0xffff'
-```
-
 
 ## Architecture
 
