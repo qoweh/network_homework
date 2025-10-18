@@ -97,11 +97,14 @@ public class BasicChatApp {
 	 * 프로그램 시작점
 	 * 
 	 * 초기화 순서:
-	 * 1. 네트워크 장치 탐색 (initializeDevices)
-	 * 2. GUI 생성 (createAndShowGUI)
-	 * 3. 사용자 입력 대기
+	 * 1. ASCII 아트 배너 출력
+	 * 2. 네트워크 장치 탐색 (initializeDevices)
+	 * 3. GUI 생성 (createAndShowGUI)
+	 * 4. 사용자 입력 대기
 	 */
 	public static void main(String[] args) {
+		printBanner();
+		
 		// 네트워크 장치 초기화
 		if (!initializeDevices()) {
 			return; // 장치가 없으면 프로그램 종료
@@ -109,6 +112,34 @@ public class BasicChatApp {
 		
 		// Swing GUI를 이벤트 디스패치 스레드에서 생성
 		SwingUtilities.invokeLater(BasicChatApp::createAndShowGUI);
+	}
+
+	private static void printBanner() {
+		System.out.println();
+		System.out.println("  ,-.----.                                                                      ");
+		System.out.println("  ,----..    ,---,                   ___                                            \\    /  \\                                                              ____   ");
+		System.out.println(" /   /   \\ ,--.' |                 ,--.'|_    ,--,                                  |   :    \\                                                           ,'  , `. ");
+		System.out.println("|   :     :|  |  :                 |  | :,' ,--.'|         ,---,                    |   |  .\\ :  __  ,-.   ,---.               __  ,-.                ,-+-,.' _ | ");
+		System.out.println(".   |  ;. /:  :  :                 :  : ' : |  |,      ,-+-. /  |  ,----._,.        .   :  |: |,' ,'/ /|  '   ,'\\   ,----._,.,' ,'/ /|             ,-+-. ;   , || ");
+		System.out.println(".   ; /--` :  |  |,--.  ,--.--.  .;__,'  /  `--'_     ,--.'|'   | /   /  ' /        |   |   \\ :'  | |' | /   /   | /   /  ' /'  | |' | ,--.--.    ,--.'|'   |  || ");
+		System.out.println(";   | ;    |  :  '   | /       \\ |  |   |   ,' ,'|   |   |  ,\"' ||   :     |        |   : .   /|  |   ,'.   ; ,. :|   :     ||  |   ,'/       \\  |   |  ,', |  |, ");
+		System.out.println("|   : |    |  |   /' :.--.  .-. |:__,'| :   '  | |   |   | /  | ||   | .\\  .        ;   | |`-' '  :  /  '   | |: :|   | .\\  .'  :  / .--.  .-. | |   | /  | |--'  ");
+		System.out.println(".   | '___ '  :  | | | \\__\\/: . .  '  : |__ |  | :   |   | |  | |.   ; ';  |        |   | ;    |  | '   '   | .; :.   ; ';  ||  | '   \\__\\/: . . |   : |  | ,     ");
+		System.out.println("'   ; : .'||  |  ' | : ,\" .--.; |  |  | '.'|'  : |__ |   | |  |/ '   .   . |        :   ' |    ;  : |   |   :    |'   .   . |;  : |   ,\" .--.; | |   : |  |/      ");
+		System.out.println("'   | '/  :|  :  :_:,'/  /  ,.  |  ;  :    ;|  | '.'||   | |--'   `---`-'| |        :   : :    |  , ;    \\   \\  /  `---`-'| ||  , ;  /  /  ,.  | |   | |`-'       ");
+		System.out.println("|   :    / |  | ,'   ;  :   .'   \\ |  ,   / ;  :    ;|   |/       .'__/\\_: |        |   | :     ---'      `----'   .'__/\\_: | ---'  ;  :   .'   \\|   ;/           ");
+		System.out.println(" \\   \\ .'  `--''     |  ,     .-./  ---`-'  |  ,   / '---'        |   :    :        `---'.|                        |   :    :       |  ,     .-./'---'            ");
+		System.out.println("  `---`               `--`---'               ---`-'                \\   \\  /           `---`                         \\   \\  /         `--`---'                     ");
+		System.out.println("                                                                    `--`-'                                           `--`-'                                       ");
+		System.out.println();
+		System.out.println("╔═══════════════════════════════════════════════════════════════════════════════╗");
+		System.out.println("║                  패킷 기반 채팅 프로그램 (Packet Chat v1.0)                   ║");
+		System.out.println("║                                                                               ║");
+		System.out.println("║  • EtherType: 0xFFFF (사용자 정의 프로토콜)                                   ║");
+		System.out.println("║  • 계층 구조: ChatApp → Ethernet → Physical (jNetPcap)                       ║");
+		System.out.println("║  • MAC 필터링: 자기 수신 방지 + 브로드캐스트/유니캐스트 지원                 ║");
+		System.out.println("╚═══════════════════════════════════════════════════════════════════════════════╝");
+		System.out.println();
 	}
 
 	/**
