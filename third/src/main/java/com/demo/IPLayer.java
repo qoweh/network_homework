@@ -43,8 +43,10 @@ public class IPLayer implements BaseLayer {
     private static final int IP_HEADER_LENGTH = 5;     // 5 * 4 = 20바이트 (옵션 없음)
     private static final int IP_TOS = 0;               // Type of Service
     private static final int IP_TTL = 128;             // Time to Live
-    private static final int IP_PROTOCOL_TCP = 6;      // TCP 프로토콜
-    private static final int IP_PROTOCOL_UDP = 17;     // UDP 프로토콜
+    @SuppressWarnings("unused")
+    private static final int IP_PROTOCOL_TCP = 6;      // TCP 프로토콜 (향후 확장용)
+    @SuppressWarnings("unused")
+    private static final int IP_PROTOCOL_UDP = 17;     // UDP 프로토콜 (향후 확장용)
     private static final int IP_PROTOCOL_CUSTOM = 253; // 사용자 정의 프로토콜
     
     private int ipIdentification = 0; // IP 패킷 ID (증가)

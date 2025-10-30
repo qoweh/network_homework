@@ -320,8 +320,8 @@ public class ARPLayer implements BaseLayer {
         // ARP 헤더 파싱
         int hardwareType = buffer.getShort() & 0xFFFF;
         int protocolType = buffer.getShort() & 0xFFFF;
-        int hwLen = buffer.get() & 0xFF;
-        int protoLen = buffer.get() & 0xFF;
+        buffer.get(); // hwLen (사용하지 않음)
+        buffer.get(); // protoLen (사용하지 않음)
         int operation = buffer.getShort() & 0xFFFF;
         
         // Ethernet/IPv4 ARP만 처리
