@@ -115,7 +115,7 @@ src/main/java/com/demo/
 
 ### 1. 빌드
 ```bash
-cd /Users/pilt/project-collection/network/network_homework/second
+cd third
 mvn clean compile
 ```
 
