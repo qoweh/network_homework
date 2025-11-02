@@ -12,6 +12,22 @@ sudo ./run_arp_chat.sh
 sudo ./run_basic_chat.sh
 ```
 
+### 📦 수동 실행 (스크립트가 작동하지 않을 경우)
+
+```bash
+# 1. 컴파일 (Java 21 필요)
+javac --enable-preview --release 21 -d target/classes -cp "lib/jnetpcap-wrapper-2.3.1-jdk21.jar" \
+  src/main/java/com/demo/*.java
+
+# 2. 실행
+sudo java --enable-preview -cp "target/classes:lib/jnetpcap-wrapper-2.3.1-jdk21.jar" com.demo.ARPChatApp
+```
+
+> **⚠️ 요구사항:**
+> - Java 21 이상 필요
+> - macOS/Linux (jNetPcap 네이티브 라이브러리)
+> - 관리자 권한 (sudo)
+
 > `sudo (관리자 권한)가 필요한 이유 : 패킷 캡처 (Packet Capture) 때문`
 >  
 > ```java

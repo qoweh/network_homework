@@ -50,9 +50,34 @@ fi
 echo "[시작] ARP 채팅 프로그램을 시작합니다..."
 echo ""
 
-# Java 21로 실행
-export JAVA_HOME=$(/usr/libexec/java_home -v 21)
-$JAVA_HOME/bin/java --enable-preview -cp "target/classes:lib/jnetpcap-wrapper-2.3.1-jdk21.jar" com.demo.ARPChatApp
+# Java 21 찾기
+if command -v /usr/libexec/java_home &> /dev/null; then
+    # macOS
+    export JAVA_HOME=$(/usr/libexec/java_home -v 21 2>/dev/null)
+    if [ -z "$JAVA_HOME" ]; then
+        echo "[경고] Java 21을 찾을 수 없습니다. 기본 Java를 사용합니다."
+        JAVA_CMD="java"
+    else
+        JAVA_CMD="$JAVA_HOME/bin/java"
+    fi
+else
+    # Linux or other
+    if command -v java &> /dev/null; then
+        JAVA_VERSION=$(java -version 2>&1 | head -n 1 | cut -d'"' -f2 | cut -d'.' -f1)
+        if [ "$JAVA_VERSION" -ge 21 ]; then
+            JAVA_CMD="java"
+        else
+            echo "[오류] Java 21 이상이 필요합니다. 현재 버전: $JAVA_VERSION"
+            exit 1
+        fi
+    else
+        echo "[오류] Java를 찾을 수 없습니다."
+        exit 1
+    fi
+fi
+
+echo "[실행] Java: $JAVA_CMD"
+$JAVA_CMD --enable-preview -cp "target/classes:lib/jnetpcap-wrapper-2.3.1-jdk21.jar" com.demo.ARPChatApp
 
 echo ""
 echo "[종료] 프로그램이 종료되었습니다."
