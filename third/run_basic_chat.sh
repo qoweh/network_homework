@@ -15,11 +15,16 @@ echo ""
 if [ ! -d "target/classes/com/demo" ]; then
     echo "[컴파일] 클래스 파일이 없습니다. 컴파일을 시작합니다..."
     mkdir -p target/classes
-    javac --enable-preview --release 21 -d target/classes -cp "lib/jnetpcap-wrapper-2.3.1-jdk21.jar" \
+    
+    # Java 21로 컴파일
+    export JAVA_HOME=$(/usr/libexec/java_home -v 21)
+    $JAVA_HOME/bin/javac --enable-preview --release 21 -d target/classes -cp "lib/jnetpcap-wrapper-2.3.1-jdk21.jar" \
         src/main/java/com/demo/BaseLayer.java \
         src/main/java/com/demo/PhysicalLayer.java \
         src/main/java/com/demo/EthernetLayer.java \
         src/main/java/com/demo/ChatAppLayer.java \
+        src/main/java/com/demo/ARPLayer.java \
+        src/main/java/com/demo/IPLayer.java \
         src/main/java/com/demo/BasicChatApp.java
     
     if [ $? -ne 0 ]; then
