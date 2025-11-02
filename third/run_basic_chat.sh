@@ -44,7 +44,9 @@ fi
 echo "[시작] 기본 채팅 프로그램을 시작합니다..."
 echo ""
 
-java --enable-preview -cp "target/classes:lib/jnetpcap-wrapper-2.3.1-jdk21.jar" com.demo.BasicChatApp
+# Java 21로 실행
+export JAVA_HOME=$(/usr/libexec/java_home -v 21)
+$JAVA_HOME/bin/java --enable-preview -cp "target/classes:lib/jnetpcap-wrapper-2.3.1-jdk21.jar" com.demo.BasicChatApp
 
 echo ""
 echo "[종료] 프로그램이 종료되었습니다."
