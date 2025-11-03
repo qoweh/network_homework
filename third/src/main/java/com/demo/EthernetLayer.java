@@ -197,10 +197,26 @@ public class EthernetLayer implements BaseLayer {
 
         // 3. 자기 수신 방지: 내가 보낸 프레임은 드롭
         //    (같은 NIC에서 송신 → 캡처되는 현상 방지)
-        if (srcIsMe) return false;
+        if (srcIsMe) {
+            // System.out.println("[Ethernet] 자기 수신 - 드롭");
+            return false;
+        }
         
         // 4. 목적지 필터: 나에게 온 것이거나 브로드캐스트만 수락
-        if (!(dstIsMe || isBroadcast)) return false;
+        if (!(dstIsMe || isBroadcast)) {
+            // 디버깅: 필터링된 패킷 정보 출력
+            String dstMacStr = String.format("%02X:%02X:%02X:%02X:%02X:%02X",
+                input[0] & 0xFF, input[1] & 0xFF, input[2] & 0xFF,
+                input[3] & 0xFF, input[4] & 0xFF, input[5] & 0xFF);
+            String srcMacStr = String.format("%02X:%02X:%02X:%02X:%02X:%02X",
+                input[6] & 0xFF, input[7] & 0xFF, input[8] & 0xFF,
+                input[9] & 0xFF, input[10] & 0xFF, input[11] & 0xFF);
+            String myMacStr = String.format("%02X:%02X:%02X:%02X:%02X:%02X",
+                srcMac[0] & 0xFF, srcMac[1] & 0xFF, srcMac[2] & 0xFF,
+                srcMac[3] & 0xFF, srcMac[4] & 0xFF, srcMac[5] & 0xFF);
+            System.out.println("[Ethernet] 목적지 필터 - 드롭: " + srcMacStr + " -> " + dstMacStr + " (내 MAC: " + myMacStr + ")");
+            return false;
+        }
 
         // 5. EtherType 파싱 (빅 엔디안 → 정수 변환)
         int receivedEtherType = ((input[12] & 0xFF) << 8) | (input[13] & 0xFF);

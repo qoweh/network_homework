@@ -1,3 +1,8 @@
+
+Q. GARP와 Proxy ARP가 어떻게 작동되는지 자세하게. 수신 IP, MAC과 송신 IP, MAC, 필요하다면 Proxy IP, MAC 포함해서 설명
+
+
+
 # Third - ARP 채팅 프로그램
 
 > ARP 프로토콜 기능이 포함된 패킷 기반 채팅 애플리케이션
