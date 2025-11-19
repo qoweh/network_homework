@@ -1,0 +1,55 @@
+[INFO] Scanning for projects...
+[WARNING] 
+[WARNING] Some problems were encountered while building the effective model for com.demo:network_w7:jar:1.0-SNAPSHOT
+[WARNING] 'dependencies.dependency.systemPath' for org.jnetpcap:jnetpcap-wrapper:jar should not point at files within the project directory, ${project.basedir}/lib/jnetpcap-wrapper-2.3.1-jdk21.jar will be unresolvable by dependent projects @ line 37, column 19
+[WARNING] 
+[WARNING] It is highly recommended to fix these problems because they threaten the stability of your build.
+[WARNING] 
+[WARNING] For this reason, future Maven versions might no longer support building such malformed projects.
+[WARNING] 
+[INFO] 
+[INFO] ------------------------< com.demo:network_w7 >-------------------------
+[INFO] Building network_w7 1.0-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- exec:3.1.0:exec (run-app) @ network_w7 ---
+
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║              ARP 기능이 추가된 패킷 채팅 프로그램 (ARP Chat v2.0)             ║
+║                                                                               ║
+║  • 계층 구조: ChatApp → IP → Ethernet/ARP → Physical                          ║
+║  • ARP 기능: Request, Reply, Gratuitous ARP, Proxy ARP                       ║
+║  • IP 통신: IPv4 기반 메시지 송수신                                           ║
+╚═══════════════════════════════════════════════════════════════════════════════╝
+
+사용 가능한 네트워크 장치:
+1. ap1 - Optional.empty
+2. en0 - Optional.empty
+3. awdl0 - Optional.empty
+4. llw0 - Optional.empty
+5. utun0 - Optional.empty
+6. utun1 - Optional.empty
+7. utun2 - Optional.empty
+8. utun3 - Optional.empty
+9. utun4 - Optional.empty
+10. utun5 - Optional.empty
+11. lo0 - Optional.empty
+12. anpi0 - Optional.empty
+13. anpi2 - Optional.empty
+14. anpi1 - Optional.empty
+15. en4 - Optional.empty
+16. en5 - Optional.empty
+17. en6 - Optional.empty
+18. en1 - Optional.empty
+19. en2 - Optional.empty
+20. en3 - Optional.empty
+21. bridge0 - Optional.empty
+22. gif0 - Optional.empty
+23. stf0 - Optional.empty
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  2.038 s
+[INFO] Finished at: 2025-11-19T13:57:41+09:00
+[INFO] ------------------------------------------------------------------------
