@@ -4,7 +4,7 @@
 # Maven이 Java 21을 올바르게 사용하도록 강제
 
 echo "======================================"
-echo "Maven Toolchains 설정"
+echo "Java Alternatives 설정"
 echo "======================================"
 
 # JAVA_HOME 설정
@@ -17,10 +17,26 @@ fi
 
 echo "JAVA_HOME: $JAVA_HOME"
 
+# javac alternatives 등록 (없을 경우)
+if ! sudo update-alternatives --list javac > /dev/null 2>&1; then
+    echo "javac alternatives 등록 중..."
+    sudo update-alternatives --install /usr/bin/javac javac $JAVA_HOME/bin/javac 2111
+    sudo update-alternatives --set javac $JAVA_HOME/bin/javac
+    echo "✓ javac alternatives 등록 완료"
+else
+    echo "✓ javac alternatives 이미 등록됨"
+    sudo update-alternatives --set javac $JAVA_HOME/bin/javac
+fi
+
 # Maven 설정 디렉토리 생성
 mkdir -p ~/.m2
 
 # toolchains.xml 생성
+echo ""
+echo "======================================"
+echo "Maven Toolchains 설정"
+echo "======================================"
+
 cat > ~/.m2/toolchains.xml << EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <toolchains>
@@ -38,15 +54,6 @@ cat > ~/.m2/toolchains.xml << EOF
 EOF
 
 echo "✓ toolchains.xml 생성 완료"
-cat ~/.m2/toolchains.xml
-
-# Maven settings.xml도 업데이트
-echo ""
-echo "======================================"
-echo "컴파일 테스트"
-echo "======================================"
-
-cd "$(dirname "$0")"
 
 # 환경변수 설정
 export JAVA_HOME=$JAVA_HOME
@@ -57,7 +64,32 @@ if [ -d "/opt/apache-maven-3.9.9" ]; then
     export PATH=$M2_HOME/bin:$PATH
 fi
 
-# Maven clean & compile
+# 확인
+echo ""
+echo "======================================"
+echo "설정 확인"
+echo "======================================"
+echo "java: $(which java)"
+echo "javac: $(which javac)"
+echo "Java version: $(java -version 2>&1 | head -n 1)"
+echo "javac version: $(javac -version 2>&1)"
+echo "Maven version: $(mvn -version 2>&1 | head -n 1)"
+
+# Maven 캐시 삭제 (이전 실패한 빌드 정리)
+echo ""
+echo "======================================"
+echo "Maven 캐시 정리"
+echo "======================================"
+rm -rf ~/.m2/repository/com/demo
+
+# 컴파일 테스트
+echo ""
+echo "======================================"
+echo "컴파일 테스트"
+echo "======================================"
+
+cd "$(dirname "$0")"
+
 mvn clean compile
 
 if [ $? -eq 0 ]; then
@@ -73,7 +105,6 @@ else
     echo "❌ 여전히 실패"
     echo "======================================"
     echo ""
-    echo "Java alternatives 설정 필요:"
-    echo "sudo update-alternatives --config java"
-    echo "sudo update-alternatives --config javac"
+    echo "상세 로그:"
+    mvn compile -X 2>&1 | grep -A 10 "release version"
 fi
