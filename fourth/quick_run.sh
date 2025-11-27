@@ -13,11 +13,7 @@ export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
 export PATH=$JAVA_HOME/bin:$PATH
 
 echo "✓ Java 버전:"
-java -version 2>&1 | head -n 1
-echo ""
-
-echo "✓ Maven 버전:"
-mvn -version 2>&1 | head -n 1
+$JAVA_HOME/bin/java -version 2>&1 | head -n 1
 echo ""
 
 echo "✓ JAVA_HOME: $JAVA_HOME"
@@ -29,13 +25,13 @@ cd ~/network_homework/fourth
 echo "======================================"
 echo "1. Clean 빌드 중..."
 echo "======================================"
-mvn clean
+JAVA_HOME=$JAVA_HOME mvn clean
 
 echo ""
 echo "======================================"
 echo "2. 컴파일 중..."
 echo "======================================"
-mvn compile
+JAVA_HOME=$JAVA_HOME mvn compile
 
 if [ $? -eq 0 ]; then
     echo ""
@@ -45,7 +41,7 @@ if [ $? -eq 0 ]; then
     echo ""
     echo "프로그램을 실행합니다..."
     echo ""
-    mvn exec:exec@run-app
+    JAVA_HOME=$JAVA_HOME mvn exec:exec@run-app
 else
     echo ""
     echo "======================================"

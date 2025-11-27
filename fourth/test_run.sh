@@ -13,7 +13,7 @@ export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
 export PATH=$JAVA_HOME/bin:$PATH
 
 echo "✓ JAVA_HOME: $JAVA_HOME"
-echo "✓ Java 버전: $(java -version 2>&1 | head -n 1)"
+echo "✓ Java 버전: $($JAVA_HOME/bin/java -version 2>&1 | head -n 1)"
 echo ""
 
 # 프로젝트 디렉토리로 이동
@@ -24,7 +24,7 @@ echo "테스트 실행 중..."
 echo "======================================"
 echo ""
 
-mvn test
+JAVA_HOME=$JAVA_HOME mvn test
 
 if [ $? -eq 0 ]; then
     echo ""
