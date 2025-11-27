@@ -67,6 +67,7 @@ public class ARPChatApp {
     // ============= UI Components =============
     private static JTextArea textArea;
     private static JTextField myIpField;
+    private static JTextField myMacField;
     private static JTextField dstIpField;
     private static JTextField messageField;
     private static JComboBox<String> deviceComboBox;
@@ -163,6 +164,21 @@ public class ARPChatApp {
                                  " - " + (device.description() != null ? device.description() : "설명 없음"));
             }
             
+            System.out.println();
+            System.out.println("┌─────────────────────────────────────────────────────────────┐");
+            System.out.println("│ VM과 Mac 간 연결을 위한 장치 선택 가이드:                  │");
+            System.out.println("│                                                             │");
+            System.out.println("│ [VM (Ubuntu)]                                               │");
+            System.out.println("│   → enp0s1: VM의 기본 네트워크 어댑터 (권장)               │");
+            System.out.println("│                                                             │");
+            System.out.println("│ [Mac (호스트)]                                              │");
+            System.out.println("│   → vmenet0 또는 bridge100: VM 브리지 네트워크 (권장)       │");
+            System.out.println("│   → en0: Wi-Fi (같은 물리 네트워크 사용 시)                │");
+            System.out.println("│                                                             │");
+            System.out.println("│ 양쪽 장치가 같은 IP 대역(예: 192.168.64.x)에 있어야 합니다. │");
+            System.out.println("└─────────────────────────────────────────────────────────────┘");
+            System.out.println();
+            
             return true;
         } catch (PcapException e) {
             System.err.println("Pcap 초기화 오류: " + e.getMessage());
@@ -219,32 +235,44 @@ public class ARPChatApp {
         deviceComboBox.addActionListener(e -> handleDeviceSelection());
         panel.add(deviceComboBox, gbc);
         
-        // 내 IP 주소
+        // 내 MAC 주소
         gbc.gridx = 0; gbc.gridy = 1; gbc.gridwidth = 1;
+        JLabel myMacLabel = new JLabel("내 MAC 주소:");
+        myMacLabel.setForeground(Color.BLACK);
+        panel.add(myMacLabel, gbc);
+        
+        gbc.gridx = 1; gbc.gridy = 1;
+        myMacField = new JTextField("00:00:00:00:00:00", 15);
+        myMacField.setBackground(Color.WHITE);
+        myMacField.setForeground(Color.BLACK);
+        panel.add(myMacField, gbc);
+        
+        // 내 IP 주소
+        gbc.gridx = 0; gbc.gridy = 2;
         JLabel myIpLabel = new JLabel("내 IP 주소:");
         myIpLabel.setForeground(Color.BLACK);
         panel.add(myIpLabel, gbc);
         
-        gbc.gridx = 1; gbc.gridy = 1;
+        gbc.gridx = 1; gbc.gridy = 2;
         myIpField = new JTextField("192.168.0.100", 15);
         myIpField.setBackground(Color.WHITE);
         myIpField.setForeground(Color.BLACK);
         panel.add(myIpField, gbc);
         
         // 목적지 IP 주소
-        gbc.gridx = 0; gbc.gridy = 2;
+        gbc.gridx = 0; gbc.gridy = 3;
         JLabel dstIpLabel = new JLabel("목적지 IP:");
         dstIpLabel.setForeground(Color.BLACK);
         panel.add(dstIpLabel, gbc);
         
-        gbc.gridx = 1; gbc.gridy = 2;
+        gbc.gridx = 1; gbc.gridy = 3;
         dstIpField = new JTextField("192.168.0.101", 15);
         dstIpField.setBackground(Color.WHITE);
         dstIpField.setForeground(Color.BLACK);
         panel.add(dstIpField, gbc);
         
         // 설정 버튼
-        gbc.gridx = 2; gbc.gridy = 1; gbc.gridheight = 2;
+        gbc.gridx = 2; gbc.gridy = 1; gbc.gridheight = 3;
         JButton setupButton = new JButton("설정");
         setupButton.addActionListener(e -> handleSetup());
         panel.add(setupButton, gbc);
@@ -464,14 +492,19 @@ public class ARPChatApp {
         if (selectedDevice == null) return;
         
         try {
+            // NetworkInterface에서 MAC 주소 가져오기
             NetworkInterface ni = NetworkInterface.getByName(selectedDevice.name());
             if (ni != null) {
                 byte[] mac = ni.getHardwareAddress();
                 if (mac != null && mac.length >= 6) {
                     System.arraycopy(mac, 0, myMacAddress, 0, 6);
                     System.out.println("MAC 주소 로드됨: " + formatMacAddress(myMacAddress));
+                    return;
                 }
             }
+            
+            System.err.println("MAC 주소를 찾을 수 없습니다. 수동으로 입력하세요.");
+            System.err.println("명령어: ifconfig " + selectedDevice.name() + " | grep ether");
         } catch (SocketException e) {
             System.err.println("MAC 주소 로드 실패: " + e.getMessage());
         }
@@ -481,8 +514,12 @@ public class ARPChatApp {
      * MAC 주소 표시
      */
     private static void displayMacAddress() {
+        String macStr = formatMacAddress(myMacAddress);
+        myMacField.setText(macStr);
         if (!isMacAddressZero(myMacAddress)) {
-            logToUI("[시스템] 내 MAC 주소: " + formatMacAddress(myMacAddress));
+            logToUI("[시스템] 내 MAC 주소: " + macStr);
+        } else {
+            logToUI("[시스템] MAC 주소를 찾을 수 없습니다. 수동으로 입력하세요.");
         }
     }
     
@@ -491,6 +528,17 @@ public class ARPChatApp {
      */
     private static void handleSetup() {
         try {
+            // MAC 주소 파싱
+            String macStr = myMacField.getText().trim();
+            byte[] parsedMac = parseMacAddress(macStr);
+            if (parsedMac != null && parsedMac.length == 6) {
+                System.arraycopy(parsedMac, 0, myMacAddress, 0, 6);
+                logToUI("[시스템] 내 MAC: " + formatMacAddress(myMacAddress));
+            } else {
+                logToUI("[오류] 잘못된 MAC 주소 형식: " + macStr);
+                return;
+            }
+            
             // IP 주소 파싱
             parseIpAddress(myIpField.getText(), myIpAddress);
             parseIpAddress(dstIpField.getText(), dstIpAddress);
