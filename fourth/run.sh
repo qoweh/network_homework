@@ -60,9 +60,19 @@ echo "======================================"
 echo "Maven Clean & Compile"
 echo "======================================"
 
-# Ubuntu에서는 JAVA_HOME을 명시적으로 Maven에 전달
+# pom.xml에 명시적으로 javac 경로 전달
+export JAVA_HOME=$JAVA_HOME
+export PATH=$JAVA_HOME/bin:$PATH
+
+# Ubuntu에서는 Maven에 명시적으로 Java 경로 전달
 if [ "$OS" = "ubuntu" ]; then
-    JAVA_HOME=$JAVA_HOME mvn clean compile -q
+    # Maven toolchains 확인
+    if [ ! -f ~/.m2/toolchains.xml ]; then
+        echo "⚠️  Maven toolchains 설정이 필요합니다."
+        echo "   ./setup_toolchains.sh를 먼저 실행하세요."
+        exit 1
+    fi
+    mvn clean compile -Dmaven.compiler.executable=$JAVA_HOME/bin/javac
 else
     mvn clean compile -q
 fi
@@ -72,11 +82,8 @@ if [ $? -ne 0 ]; then
     echo "❌ 컴파일 실패"
     if [ "$OS" = "ubuntu" ]; then
         echo ""
-        echo "디버그 정보:"
-        echo "  javac 위치: $(which javac)"
-        echo "  javac 버전: $(javac -version 2>&1)"
-        echo ""
-        echo "./setup.sh를 다시 실행해보세요."
+        echo "해결 방법:"
+        echo "  ./setup_toolchains.sh"
     fi
     exit 1
 else
