@@ -91,8 +91,9 @@
             </goals>
             <configuration>
               <executable>${env.JAVA_HOME}/bin/java</executable>
-              <commandlineArgs>--enable-preview --enable-native-access=ALL-UNNAMED</commandlineArgs>
               <arguments>
+                <argument>--enable-preview</argument>
+                <argument>--enable-native-access=ALL-UNNAMED</argument>
                 <argument>-cp</argument>
                 <argument>${project.build.outputDirectory}:${project.basedir}/lib/jnetpcap-wrapper-2.3.1-jdk21.jar</argument>
                 <argument>-Djava.library.path=${project.basedir}/lib/native</argument>
