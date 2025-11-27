@@ -95,6 +95,7 @@ if [ "$MAVEN_MAJOR" -lt 3 ] || ([ "$MAVEN_MAJOR" -eq 3 ] && [ "$MAVEN_MINOR" -lt
     # 환경변수 설정
     echo 'export M2_HOME=/opt/apache-maven-3.9.9' | sudo tee /etc/profile.d/maven.sh > /dev/null
     echo 'export PATH=$M2_HOME/bin:$PATH' | sudo tee -a /etc/profile.d/maven.sh > /dev/null
+    echo 'export MAVEN_OPTS="-Djava.home=/usr/lib/jvm/java-21-openjdk-arm64"' | sudo tee -a /etc/profile.d/maven.sh > /dev/null
     sudo chmod +x /etc/profile.d/maven.sh
     
     export M2_HOME=/opt/apache-maven-3.9.9
@@ -136,7 +137,19 @@ if [ -d "/opt/apache-maven-3.9.9" ]; then
     if ! grep -q "M2_HOME=/opt/apache-maven-3.9.9" ~/.bashrc; then
         echo "export M2_HOME=/opt/apache-maven-3.9.9" >> ~/.bashrc
         echo "export PATH=\$M2_HOME/bin:\$PATH" >> ~/.bashrc
+        echo "export MAVEN_OPTS=\"-Djava.home=\$JAVA_HOME\"" >> ~/.bashrc
     fi
+fi
+
+# 테스트: Maven이 올바른 javac를 사용하는지 확인
+echo ""
+echo "======================================"
+echo "설치 검증"
+echo "======================================"
+echo "Java: $($JAVA_HOME/bin/java -version 2>&1 | head -n 1)"
+echo "javac: $($JAVA_HOME/bin/javac -version 2>&1)"
+if [ -d "/opt/apache-maven-3.9.9" ]; then
+    echo "Maven: $(/opt/apache-maven-3.9.9/bin/mvn -version | head -n 1)"
 fi
 
 echo ""

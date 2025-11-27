@@ -39,6 +39,9 @@ elif [ "$OS" = "ubuntu" ]; then
         export M2_HOME=/opt/apache-maven-3.9.9
         export PATH=$M2_HOME/bin:$PATH
     fi
+    
+    # Maven이 올바른 javac를 사용하도록 강제 설정
+    export MAVEN_OPTS="-Djava.home=$JAVA_HOME"
 fi
 
 export PATH=$JAVA_HOME/bin:$PATH
@@ -56,13 +59,24 @@ echo ""
 echo "======================================"
 echo "Maven Clean & Compile"
 echo "======================================"
-mvn clean compile -q
+
+# Ubuntu에서는 JAVA_HOME을 명시적으로 Maven에 전달
+if [ "$OS" = "ubuntu" ]; then
+    JAVA_HOME=$JAVA_HOME mvn clean compile -q
+else
+    mvn clean compile -q
+fi
 
 if [ $? -ne 0 ]; then
     echo ""
     echo "❌ 컴파일 실패"
     if [ "$OS" = "ubuntu" ]; then
-        echo "   ./setup.sh를 실행하여 환경을 설정하세요."
+        echo ""
+        echo "디버그 정보:"
+        echo "  javac 위치: $(which javac)"
+        echo "  javac 버전: $(javac -version 2>&1)"
+        echo ""
+        echo "./setup.sh를 다시 실행해보세요."
     fi
     exit 1
 else
@@ -79,4 +93,9 @@ if [ "$OS" = "ubuntu" ]; then
 fi
 echo ""
 
-mvn exec:exec@run-app
+# Ubuntu에서는 JAVA_HOME을 명시적으로 전달
+if [ "$OS" = "ubuntu" ]; then
+    JAVA_HOME=$JAVA_HOME mvn exec:exec@run-app
+else
+    mvn exec:exec@run-app
+fi
