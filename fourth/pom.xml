@@ -94,13 +94,13 @@
               <arguments>
                 <argument>--enable-preview</argument>
                 <argument>--enable-native-access=ALL-UNNAMED</argument>
+                <argument>-Djava.library.path=/usr/lib/aarch64-linux-gnu:${project.basedir}/lib/native</argument>
                 <argument>-cp</argument>
                 <argument>${project.build.outputDirectory}:${project.basedir}/lib/jnetpcap-wrapper-2.3.1-jdk21.jar</argument>
-                <argument>-Djava.library.path=${project.basedir}/lib/native</argument>
                 <argument>com.demo.ARPChatApp</argument>
               </arguments>
               <environmentVariables>
-                <LD_LIBRARY_PATH>${project.basedir}/lib/native</LD_LIBRARY_PATH>
+                <LD_LIBRARY_PATH>/usr/lib/aarch64-linux-gnu:${project.basedir}/lib/native</LD_LIBRARY_PATH>
               </environmentVariables>
             </configuration>
           </execution>

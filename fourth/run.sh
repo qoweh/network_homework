@@ -80,6 +80,9 @@ echo "======================================"
 if [ "$OS" = "ubuntu" ]; then
     echo "GUI 프로그램 실행 중..."
     echo "X11 forwarding: $DISPLAY"
+    
+    # Ubuntu: libpcap 네이티브 라이브러리 경로 추가
+    export LD_LIBRARY_PATH=/usr/lib/aarch64-linux-gnu:/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH
 fi
 echo ""
 
