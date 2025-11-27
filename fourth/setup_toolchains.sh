@@ -4,7 +4,7 @@
 # Maven이 Java 21을 올바르게 사용하도록 강제
 
 echo "======================================"
-echo "Java Alternatives 설정"
+echo "Java JDK 설치 확인"
 echo "======================================"
 
 # JAVA_HOME 설정
@@ -17,16 +17,32 @@ fi
 
 echo "JAVA_HOME: $JAVA_HOME"
 
-# javac alternatives 등록 (없을 경우)
-if ! sudo update-alternatives --list javac > /dev/null 2>&1; then
-    echo "javac alternatives 등록 중..."
-    sudo update-alternatives --install /usr/bin/javac javac $JAVA_HOME/bin/javac 2111
-    sudo update-alternatives --set javac $JAVA_HOME/bin/javac
-    echo "✓ javac alternatives 등록 완료"
+# javac 존재 확인
+if [ ! -f "$JAVA_HOME/bin/javac" ]; then
+    echo "❌ javac가 설치되어 있지 않습니다. JDK를 설치합니다..."
+    sudo apt update
+    sudo apt install -y openjdk-21-jdk-headless
+    
+    # 설치 후 재확인
+    if [ ! -f "$JAVA_HOME/bin/javac" ]; then
+        echo "❌ JDK 설치 실패"
+        exit 1
+    fi
+    echo "✓ JDK 설치 완료"
 else
-    echo "✓ javac alternatives 이미 등록됨"
-    sudo update-alternatives --set javac $JAVA_HOME/bin/javac
+    echo "✓ javac 존재: $JAVA_HOME/bin/javac"
 fi
+
+# javac alternatives 등록
+echo ""
+echo "======================================"
+echo "Java Alternatives 설정"
+echo "======================================"
+
+sudo update-alternatives --install /usr/bin/javac javac $JAVA_HOME/bin/javac 2111
+sudo update-alternatives --set javac $JAVA_HOME/bin/javac
+
+echo "✓ javac alternatives 설정 완료"
 
 # Maven 설정 디렉토리 생성
 mkdir -p ~/.m2
@@ -69,18 +85,17 @@ echo ""
 echo "======================================"
 echo "설정 확인"
 echo "======================================"
-echo "java: $(which java)"
-echo "javac: $(which javac)"
-echo "Java version: $(java -version 2>&1 | head -n 1)"
-echo "javac version: $(javac -version 2>&1)"
-echo "Maven version: $(mvn -version 2>&1 | head -n 1)"
+echo "java: $(which java) -> $(java -version 2>&1 | head -n 1)"
+echo "javac: $(which javac) -> $(javac -version 2>&1)"
+echo "Maven: $(which mvn) -> $(mvn -version 2>&1 | head -n 1)"
 
-# Maven 캐시 삭제 (이전 실패한 빌드 정리)
+# Maven 캐시 삭제
 echo ""
 echo "======================================"
 echo "Maven 캐시 정리"
 echo "======================================"
 rm -rf ~/.m2/repository/com/demo
+rm -rf target/
 
 # 컴파일 테스트
 echo ""
@@ -102,9 +117,6 @@ if [ $? -eq 0 ]; then
 else
     echo ""
     echo "======================================"
-    echo "❌ 여전히 실패"
+    echo "❌ 컴파일 실패"
     echo "======================================"
-    echo ""
-    echo "상세 로그:"
-    mvn compile -X 2>&1 | grep -A 10 "release version"
 fi
