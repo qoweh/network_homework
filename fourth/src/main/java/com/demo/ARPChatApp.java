@@ -254,7 +254,7 @@ public class ARPChatApp {
         panel.add(myIpLabel, gbc);
         
         gbc.gridx = 1; gbc.gridy = 2;
-        myIpField = new JTextField("192.168.0.100", 15);
+        myIpField = new JTextField("192.168.64.", 15);
         myIpField.setBackground(Color.WHITE);
         myIpField.setForeground(Color.BLACK);
         panel.add(myIpField, gbc);
@@ -266,7 +266,7 @@ public class ARPChatApp {
         panel.add(dstIpLabel, gbc);
         
         gbc.gridx = 1; gbc.gridy = 3;
-        dstIpField = new JTextField("192.168.0.101", 15);
+        dstIpField = new JTextField("192.168.64.", 15);
         dstIpField.setBackground(Color.WHITE);
         dstIpField.setForeground(Color.BLACK);
         panel.add(dstIpField, gbc);
