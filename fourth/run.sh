@@ -83,7 +83,10 @@ if [ "$OS" = "ubuntu" ]; then
     
     # Ubuntu: libpcap 네이티브 라이브러리 경로 추가
     export LD_LIBRARY_PATH=/usr/lib/aarch64-linux-gnu:/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH
+    
+    # DISPLAY 환경변수 명시적으로 전달
+    export DISPLAY=$DISPLAY
 fi
 echo ""
 
-mvn exec:exec@run-app
+DISPLAY=$DISPLAY mvn exec:exec@run-app
