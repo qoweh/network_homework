@@ -1,63 +1,51 @@
-
-Q. GARP와 Proxy ARP가 어떻게 작동되는지 자세하게. 수신 IP, MAC과 송신 IP, MAC, 필요하다면 Proxy IP, MAC 포함해서 설명
-
-
-
-# Third - ARP 채팅 프로그램
-
-> ARP 프로토콜 기능이 포함된 패킷 기반 채팅 애플리케이션
+# Lab 4: 파일 전송 채팅 프로그램
 
 ## 🚀 빠른 시작
 
+### macOS
 ```bash
-# ARP 채팅 프로그램 실행 (관리자 권한 필요)
-sudo ./run_arp_chat.sh
-
-# 또는 기본 채팅 프로그램 (레거시 - ARP 기능 없는 기존(second 디렉토리) 버전)
-sudo ./run_basic_chat.sh
+./run.sh
 ```
 
-### 📦 수동 실행 (스크립트가 작동하지 않을 경우)
-
+### Ubuntu/Linux
 ```bash
-# 1. 컴파일 (Java 21 필요)
-javac --enable-preview --release 21 -d target/classes -cp "lib/jnetpcap-wrapper-2.3.1-jdk21.jar" \
-  src/main/java/com/demo/*.java
+# 1. 환경 설정 (최초 1회만)
+sudo ./setup_ubuntu.sh
 
-# 2. 실행
-sudo java --enable-preview -cp "target/classes:lib/jnetpcap-wrapper-2.3.1-jdk21.jar" com.demo.ARPChatApp
+# 2. 터미널 재시작 또는
+source ~/.bashrc
+
+# 3. 실행
+./run.sh
 ```
 
-> **⚠️ 요구사항:**
-> - Java 21 이상 필요
-> - macOS/Linux (jNetPcap 네이티브 라이브러리)
-> - 관리자 권한 (sudo)
+## 📋 기능
 
-> `sudo (관리자 권한)가 필요한 이유 : 패킷 캡처 (Packet Capture) 때문`
->  
-> ```java
-> // PhysicalLayer.java에서
-> m_Adapter = Pcap.openLive(deviceName, ...);  // ← 여기서 권한 필요!
-> ```
+- ✅ 채팅 메시지 전송 (Fragmentation 지원)
+- ✅ 파일 전송 (Thread 기반, 진행률 표시)
+- ✅ IP 프로토콜 역다중화 (Chat: 253, File: 254)
+- ✅ ARP 캐시 관리
+- ✅ Out-of-order Fragment 재조립
+- ✅ UTF-8 한글 지원
 
-## 📚 문서
+## 🐛 Ubuntu 문제 해결
 
-- **[ARP_README.md](./ARP_README.md)** - 전체 프로젝트 상세 문서
-- **[IMPLEMENTATION_SUMMARY.md](./IMPLEMENTATION_SUMMARY.md)** - 구현 내용 요약
-
-## ✨ 주요 기능
-
-- ARP Request/Reply 처리
-- ARP 캐시 테이블 관리
-- Gratuitous ARP
-- Proxy ARP
-- IP 통신 (IPv4)
-- 이더넷 역다중화
-
-## 📊 계층 구조
-
-```
-ChatApp → IP → Ethernet/ARP → Physical
+### 문제 1: "release version 21 not supported"
+```bash
+export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+export PATH=$JAVA_HOME/bin:$PATH
+./run.sh
 ```
 
-더 자세한 내용은 [ARP_README.md](./ARP_README.md)를 참조하세요.
+### 문제 2: "Permission denied"
+```bash
+sudo ./run.sh
+```
+
+자세한 내용: [UBUNTU_SETUP.md](UBUNTU_SETUP.md)
+
+## 🧪 테스트
+```bash
+mvn test
+```
+**결과: 11/11 테스트 통과 ✅**
