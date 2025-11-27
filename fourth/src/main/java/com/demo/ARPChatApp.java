@@ -491,10 +491,13 @@ public class ARPChatApp {
     private static void loadMacAddress() {
         if (selectedDevice == null) return;
         
+        // 기존 MAC 주소 초기화
+        Arrays.fill(myMacAddress, (byte) 0);
+        
         try {
-            // NetworkInterface에서 MAC 주소 가져오기
+            // 방법 1: NetworkInterface에서 MAC 주소 가져오기
             NetworkInterface ni = NetworkInterface.getByName(selectedDevice.name());
-            if (ni != null) {
+            if (ni != null && ni.isUp()) {
                 byte[] mac = ni.getHardwareAddress();
                 if (mac != null && mac.length >= 6) {
                     System.arraycopy(mac, 0, myMacAddress, 0, 6);
@@ -504,17 +507,29 @@ public class ARPChatApp {
                 }
             }
             
-            // MAC 주소를 찾지 못한 경우
-            System.err.println("⚠️  MAC 주소를 자동으로 찾을 수 없습니다.");
-            System.err.println("해결 방법:");
-            System.err.println("  1) 터미널에서 실행: ifconfig " + selectedDevice.name());
-            System.err.println("  2) 'ether' 또는 'HWaddr' 다음의 MAC 주소 복사");
-            System.err.println("  3) GUI의 '내 MAC 주소' 필드에 붙여넣기");
-            System.err.println("  예시: 52:54:00:12:34:56");
+            // 방법 2: jNetPcap에서 MAC 주소 가져오기 (VM에서 더 잘 작동)
+            if (selectedDevice.addresses() != null && !selectedDevice.addresses().isEmpty()) {
+                // 이 경우 수동 입력 필요
+                System.err.println("⚠️  MAC 주소를 자동으로 찾을 수 없습니다 (VM 환경일 수 있음).");
+            }
             
-            logToUI("[경고] MAC 주소 자동 로드 실패 - 수동으로 입력하세요");
-            logToUI("[도움말] 터미널에서 'ifconfig " + selectedDevice.name() + "' 실행하여 MAC 주소 확인");
-        } catch (SocketException e) {
+            // MAC 주소를 찾지 못한 경우
+            System.err.println("\n─── MAC 주소 수동 입력 필요 ───");
+            System.err.println("해결 방법:");
+            System.err.println("  1) 터미널에서 실행:");
+            System.err.println("     $ ifconfig " + selectedDevice.name());
+            System.err.println("     또는");
+            System.err.println("     $ ip link show " + selectedDevice.name());
+            System.err.println("\n  2) 출력에서 MAC 주소 확인:");
+            System.err.println("     ether 52:54:00:12:34:56  <- 이 부분 복사");
+            System.err.println("\n  3) GUI의 '내 MAC 주소' 필드에 붙여넣기");
+            System.err.println("\n  4) '설정' 버튼 클릭");
+            System.err.println("─────────────────────────────\n");
+            
+            logToUI("[경고] MAC 주소 자동 로드 실패");
+            logToUI("[안내] 터미널에서 'ifconfig " + selectedDevice.name() + "' 실행 후 MAC 주소를 수동 입력하세요");
+            logToUI("[예시] 52:54:00:12:34:56 형식으로 입력");
+        } catch (Exception e) {
             System.err.println("MAC 주소 로드 중 오류: " + e.getMessage());
             logToUI("[오류] MAC 주소 로드 실패: " + e.getMessage());
         }
@@ -553,16 +568,62 @@ public class ARPChatApp {
      */
     private static void handleSetup() {
         try {
-            // MAC 주소 파싱
-            String macStr = myMacField.getText().trim();
-            byte[] parsedMac = parseMacAddress(macStr);
-            if (parsedMac != null && parsedMac.length == 6) {
-                System.arraycopy(parsedMac, 0, myMacAddress, 0, 6);
-                logToUI("[시스템] 내 MAC: " + formatMacAddress(myMacAddress));
-            } else {
-                logToUI("[오류] 잘못된 MAC 주소 형식: " + macStr);
+            // 장치 선택 확인
+            if (selectedDevice == null) {
+                logToUI("[오류] 네트워크 어댑터를 먼저 선택하세요");
+                JOptionPane.showMessageDialog(null, 
+                    "네트워크 어댑터를 먼저 선택하세요!",
+                    "설정 오류", 
+                    JOptionPane.ERROR_MESSAGE);
                 return;
             }
+            
+            // MAC 주소 파싱 및 검증
+            String macStr = myMacField.getText().trim();
+            
+            // MAC 주소가 00:00:00:00:00:00인 경우 경고
+            if (macStr.equals("00:00:00:00:00:00")) {
+                logToUI("[오류] 유효한 MAC 주소를 입력하세요");
+                JOptionPane.showMessageDialog(null, 
+                    "MAC 주소가 설정되지 않았습니다!\n\n" +
+                    "해결 방법:\n" +
+                    "1. 터미널에서 'ifconfig' 실행\n" +
+                    "2. 선택한 네트워크 인터페이스(" + selectedDevice.name() + ")의 MAC 주소 확인\n" +
+                    "3. '내 MAC 주소' 필드에 입력 (예: 52:54:00:12:34:56)\n" +
+                    "4. 다시 '설정' 버튼 클릭",
+                    "MAC 주소 필요", 
+                    JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            
+            byte[] parsedMac = parseMacAddress(macStr);
+            if (parsedMac == null || parsedMac.length != 6) {
+                logToUI("[오류] 잘못된 MAC 주소 형식: " + macStr);
+                JOptionPane.showMessageDialog(null, 
+                    "잘못된 MAC 주소 형식입니다!\n\n" +
+                    "올바른 형식: XX:XX:XX:XX:XX:XX\n" +
+                    "예시: 52:54:00:12:34:56",
+                    "형식 오류", 
+                    JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            
+            // MAC 주소가 모두 0인지 확인
+            boolean allZero = true;
+            for (byte b : parsedMac) {
+                if (b != 0) {
+                    allZero = false;
+                    break;
+                }
+            }
+            
+            if (allZero) {
+                logToUI("[오류] 유효하지 않은 MAC 주소: 00:00:00:00:00:00");
+                return;
+            }
+            
+            System.arraycopy(parsedMac, 0, myMacAddress, 0, 6);
+            logToUI("[시스템] 내 MAC: " + formatMacAddress(myMacAddress));
             
             // IP 주소 파싱
             parseIpAddress(myIpField.getText(), myIpAddress);
@@ -581,9 +642,15 @@ public class ARPChatApp {
             arpLayer.sendGratuitousArp();
             
             logToUI("[시스템] 설정 완료 - 통신 준비됨");
+            logToUI("[안내] 이제 ARP Request를 먼저 실행하여 상대방 MAC 주소를 확보하세요");
             
         } catch (Exception e) {
             logToUI("[오류] 설정 실패: " + e.getMessage());
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(null, 
+                "설정 실패!\n\n오류: " + e.getMessage(),
+                "설정 오류", 
+                JOptionPane.ERROR_MESSAGE);
         }
     }
     
