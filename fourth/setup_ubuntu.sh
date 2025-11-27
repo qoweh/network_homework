@@ -71,7 +71,16 @@ fi
 
 echo ""
 echo "6. 환경 변수 설정 중..."
-JAVA_HOME_PATH="/usr/lib/jvm/java-21-openjdk-amd64"
+# Java 21 경로 자동 감지
+if [ -d "/usr/lib/jvm/java-21-openjdk-arm64" ]; then
+    JAVA_HOME_PATH="/usr/lib/jvm/java-21-openjdk-arm64"
+elif [ -d "/usr/lib/jvm/java-21-openjdk-amd64" ]; then
+    JAVA_HOME_PATH="/usr/lib/jvm/java-21-openjdk-amd64"
+else
+    echo "⚠️  Java 21 경로를 찾을 수 없습니다."
+    JAVA_HOME_PATH="/usr/lib/jvm/java-21-openjdk-amd64"
+fi
+echo "   Java 경로: $JAVA_HOME_PATH"
 
 # .bashrc에 환경 변수 추가 (중복 방지)
 if ! grep -q "JAVA_HOME.*java-21" "$USER_HOME/.bashrc"; then

@@ -8,8 +8,15 @@ echo "Lab 4 프로젝트 테스트"
 echo "======================================"
 echo ""
 
-# JAVA_HOME 설정
-export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+# JAVA_HOME 설정 (자동 감지)
+if [ -d "/usr/lib/jvm/java-21-openjdk-arm64" ]; then
+    export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-arm64
+elif [ -d "/usr/lib/jvm/java-21-openjdk-amd64" ]; then
+    export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+else
+    echo "❌ Java 21을 찾을 수 없습니다!"
+    exit 1
+fi
 export PATH=$JAVA_HOME/bin:$PATH
 
 echo "✓ JAVA_HOME: $JAVA_HOME"

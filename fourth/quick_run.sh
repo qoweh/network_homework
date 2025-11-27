@@ -8,8 +8,16 @@ echo "Lab 4 프로젝트 실행"
 echo "======================================"
 echo ""
 
-# JAVA_HOME 설정
-export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+# JAVA_HOME 설정 (자동 감지)
+if [ -d "/usr/lib/jvm/java-21-openjdk-arm64" ]; then
+    export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-arm64
+elif [ -d "/usr/lib/jvm/java-21-openjdk-amd64" ]; then
+    export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+else
+    echo "❌ Java 21을 찾을 수 없습니다!"
+    echo "다음 명령으로 설치하세요: sudo apt install openjdk-21-jdk"
+    exit 1
+fi
 export PATH=$JAVA_HOME/bin:$PATH
 
 echo "✓ Java 버전:"
