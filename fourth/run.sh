@@ -1,55 +1,80 @@
 #!/bin/bash
 
-# Lab 4 파일 전송 채팅 프로그램 실행 스크립트
+# Lab 4 실행 스크립트
+# macOS & Ubuntu 자동 감지
 
 cd "$(dirname "$0")"
 
-# Java 21 경로 설정 (OS별 자동 감지)
+# OS 감지
 if [[ "$OSTYPE" == "darwin"* ]]; then
-    # macOS
-    export JAVA_HOME=$(/usr/libexec/java_home -v 21 2>/dev/null)
-elif [[ -d "/usr/lib/jvm/java-21-openjdk-amd64" ]]; then
-    # Ubuntu/Debian
-    export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
-elif [[ -d "/usr/lib/jvm/java-21" ]]; then
-    # 다른 Linux
-    export JAVA_HOME=/usr/lib/jvm/java-21
+    OS="macos"
+elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+    OS="ubuntu"
 else
-    # Java 21이 설치되지 않은 경우 시스템 기본 Java 사용
-    echo "⚠️  경고: Java 21을 찾을 수 없습니다. 시스템 기본 Java를 사용합니다."
-    export JAVA_HOME=$(dirname $(dirname $(readlink -f $(which java) 2>/dev/null || which java)))
-fi
-
-# JAVA_HOME이 설정되었는지 확인
-if [[ -z "$JAVA_HOME" || ! -d "$JAVA_HOME" ]]; then
-    echo "❌ 오류: JAVA_HOME을 설정할 수 없습니다."
-    echo "Java 21을 설치하거나 JAVA_HOME 환경변수를 수동으로 설정하세요."
+    echo "❌ 지원하지 않는 OS입니다."
     exit 1
 fi
 
-export PATH="$JAVA_HOME/bin:$PATH"
+# JAVA_HOME 설정
+if [ "$OS" = "macos" ]; then
+    export JAVA_HOME=$(/usr/libexec/java_home -v 21)
+    
+elif [ "$OS" = "ubuntu" ]; then
+    ARCH=$(uname -m)
+    
+    if [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
+        export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-arm64
+    else
+        export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+    fi
+    
+    if [ ! -d "$JAVA_HOME" ]; then
+        echo "❌ Java 21이 설치되어 있지 않습니다."
+        echo "   ./setup.sh를 먼저 실행하세요."
+        exit 1
+    fi
+    
+    # Ubuntu: Maven 3.9+ 확인
+    if [ -d "/opt/apache-maven-3.9.9" ]; then
+        export M2_HOME=/opt/apache-maven-3.9.9
+        export PATH=$M2_HOME/bin:$PATH
+    fi
+fi
+
+export PATH=$JAVA_HOME/bin:$PATH
 
 echo "======================================"
-echo "Lab 4: 파일 전송 채팅 프로그램"
+echo "Lab 4 File Transfer Chat"
 echo "======================================"
 echo ""
-echo "Java Home: $JAVA_HOME"
-echo "Java Version: $(java --version 2>/dev/null | head -n 1 || echo 'Unknown')"
-echo ""
-echo "기능:"
-echo "  - 채팅 메시지 전송 (Fragmentation 지원)"
-echo "  - 파일 전송 (Thread 기반)"
-echo "  - IP 프로토콜 역다중화 (Chat: 253, File: 254)"
-echo "  - ARP 캐시 관리"
-echo ""
-echo "프로그램을 시작합니다..."
+echo "OS: $OS"
+echo "Java: $(java -version 2>&1 | head -n 1)"
+echo "Maven: $(mvn -version 2>&1 | head -n 1)"
 echo ""
 
-# 먼저 컴파일
-mvn compile || {
-    echo "❌ 컴파일 실패!"
+# 컴파일
+echo "======================================"
+echo "Maven Clean & Compile"
+echo "======================================"
+mvn clean compile
+
+if [ $? -ne 0 ]; then
+    echo ""
+    echo "❌ 컴파일 실패"
+    if [ "$OS" = "ubuntu" ]; then
+        echo "   ./setup.sh를 실행하여 환경을 설정하세요."
+    fi
     exit 1
-}
+fi
 
-# exec:exec로 실행 (native library path 포함)
+# 실행
+echo ""
+echo "======================================"
+echo "프로그램 실행"
+echo "======================================"
+if [ "$OS" = "ubuntu" ]; then
+    echo "⚠️  GUI 프로그램: X11 forwarding 필요 (ssh -X)"
+fi
+echo ""
+
 mvn exec:exec@run-app
