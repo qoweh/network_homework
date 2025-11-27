@@ -498,15 +498,25 @@ public class ARPChatApp {
                 byte[] mac = ni.getHardwareAddress();
                 if (mac != null && mac.length >= 6) {
                     System.arraycopy(mac, 0, myMacAddress, 0, 6);
-                    System.out.println("MAC 주소 로드됨: " + formatMacAddress(myMacAddress));
+                    System.out.println("✅ MAC 주소 자동 로드 성공: " + formatMacAddress(myMacAddress));
+                    logToUI("[시스템] MAC 주소 자동 로드: " + formatMacAddress(myMacAddress));
                     return;
                 }
             }
             
-            System.err.println("MAC 주소를 찾을 수 없습니다. 수동으로 입력하세요.");
-            System.err.println("명령어: ifconfig " + selectedDevice.name() + " | grep ether");
+            // MAC 주소를 찾지 못한 경우
+            System.err.println("⚠️  MAC 주소를 자동으로 찾을 수 없습니다.");
+            System.err.println("해결 방법:");
+            System.err.println("  1) 터미널에서 실행: ifconfig " + selectedDevice.name());
+            System.err.println("  2) 'ether' 또는 'HWaddr' 다음의 MAC 주소 복사");
+            System.err.println("  3) GUI의 '내 MAC 주소' 필드에 붙여넣기");
+            System.err.println("  예시: 52:54:00:12:34:56");
+            
+            logToUI("[경고] MAC 주소 자동 로드 실패 - 수동으로 입력하세요");
+            logToUI("[도움말] 터미널에서 'ifconfig " + selectedDevice.name() + "' 실행하여 MAC 주소 확인");
         } catch (SocketException e) {
-            System.err.println("MAC 주소 로드 실패: " + e.getMessage());
+            System.err.println("MAC 주소 로드 중 오류: " + e.getMessage());
+            logToUI("[오류] MAC 주소 로드 실패: " + e.getMessage());
         }
     }
     
@@ -516,10 +526,25 @@ public class ARPChatApp {
     private static void displayMacAddress() {
         String macStr = formatMacAddress(myMacAddress);
         myMacField.setText(macStr);
+        
         if (!isMacAddressZero(myMacAddress)) {
             logToUI("[시스템] 내 MAC 주소: " + macStr);
         } else {
-            logToUI("[시스템] MAC 주소를 찾을 수 없습니다. 수동으로 입력하세요.");
+            logToUI("[시스템] MAC 주소를 찾을 수 없습니다.");
+            logToUI("[안내] 터미널에서 'ifconfig' 명령으로 MAC 주소를 확인 후 수동 입력하세요.");
+            
+            // 사용자에게 알림 표시
+            SwingUtilities.invokeLater(() -> {
+                JOptionPane.showMessageDialog(null, 
+                    "MAC 주소를 자동으로 찾을 수 없습니다.\n\n" +
+                    "해결 방법:\n" +
+                    "1. 터미널에서 'ifconfig' 또는 'ip link' 명령 실행\n" +
+                    "2. 선택한 네트워크 인터페이스의 MAC 주소 확인\n" +
+                    "3. '내 MAC 주소' 필드에 수동으로 입력\n\n" +
+                    "예시: 52:54:00:12:34:56",
+                    "MAC 주소 입력 필요", 
+                    JOptionPane.INFORMATION_MESSAGE);
+            });
         }
     }
     
