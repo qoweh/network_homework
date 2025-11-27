@@ -56,7 +56,7 @@ echo ""
 echo "======================================"
 echo "Maven Clean & Compile"
 echo "======================================"
-mvn clean compile
+mvn clean compile -q
 
 if [ $? -ne 0 ]; then
     echo ""
@@ -65,6 +65,8 @@ if [ $? -ne 0 ]; then
         echo "   ./setup.sh를 실행하여 환경을 설정하세요."
     fi
     exit 1
+else
+    echo "✓ 컴파일 성공"
 fi
 
 # 실행
