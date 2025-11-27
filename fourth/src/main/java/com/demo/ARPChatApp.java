@@ -102,6 +102,27 @@ public class ARPChatApp {
      * 프로그램 시작점
      */
     public static void main(String[] args) {
+        // Look and Feel 설정 (크로스 플랫폼)
+        try {
+            UIManager.setLookAndFeel(UIManager.getCrossPlatformLookAndFeelClassName());
+            
+            // 기본 색상 설정
+            UIManager.put("Panel.background", Color.WHITE);
+            UIManager.put("TextArea.background", Color.WHITE);
+            UIManager.put("TextArea.foreground", Color.BLACK);
+            UIManager.put("TextField.background", Color.WHITE);
+            UIManager.put("TextField.foreground", Color.BLACK);
+            UIManager.put("Button.background", new Color(240, 240, 240));
+            UIManager.put("Button.foreground", Color.BLACK);
+            UIManager.put("Label.foreground", Color.BLACK);
+            UIManager.put("Table.background", Color.WHITE);
+            UIManager.put("Table.foreground", Color.BLACK);
+            UIManager.put("ComboBox.background", Color.WHITE);
+            UIManager.put("ComboBox.foreground", Color.BLACK);
+        } catch (Exception e) {
+            System.err.println("Look and Feel 설정 실패: " + e.getMessage());
+        }
+        
         printBanner();
         
         if (!initializeDevices()) {
@@ -157,6 +178,9 @@ public class ARPChatApp {
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setLayout(new BorderLayout(10, 10));
         
+        // 프레임 배경색 설정
+        frame.getContentPane().setBackground(Color.WHITE);
+        
         // 상단: 장치 및 네트워크 설정
         frame.add(createConfigPanel(), BorderLayout.NORTH);
         
@@ -176,6 +200,7 @@ public class ARPChatApp {
      */
     private static JPanel createConfigPanel() {
         JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBackground(Color.WHITE);
         panel.setBorder(BorderFactory.createTitledBorder("네트워크 설정"));
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(5, 5, 5, 5);
@@ -183,27 +208,39 @@ public class ARPChatApp {
         
         // 장치 선택
         gbc.gridx = 0; gbc.gridy = 0;
-        panel.add(new JLabel("네트워크 장치:"), gbc);
+        JLabel deviceLabel = new JLabel("네트워크 장치:");
+        deviceLabel.setForeground(Color.BLACK);
+        panel.add(deviceLabel, gbc);
         
         gbc.gridx = 1; gbc.gridy = 0; gbc.gridwidth = 2;
         deviceComboBox = new JComboBox<>(getDeviceNames());
+        deviceComboBox.setBackground(Color.WHITE);
+        deviceComboBox.setForeground(Color.BLACK);
         deviceComboBox.addActionListener(e -> handleDeviceSelection());
         panel.add(deviceComboBox, gbc);
         
         // 내 IP 주소
         gbc.gridx = 0; gbc.gridy = 1; gbc.gridwidth = 1;
-        panel.add(new JLabel("내 IP 주소:"), gbc);
+        JLabel myIpLabel = new JLabel("내 IP 주소:");
+        myIpLabel.setForeground(Color.BLACK);
+        panel.add(myIpLabel, gbc);
         
         gbc.gridx = 1; gbc.gridy = 1;
         myIpField = new JTextField("192.168.0.100", 15);
+        myIpField.setBackground(Color.WHITE);
+        myIpField.setForeground(Color.BLACK);
         panel.add(myIpField, gbc);
         
         // 목적지 IP 주소
         gbc.gridx = 0; gbc.gridy = 2;
-        panel.add(new JLabel("목적지 IP:"), gbc);
+        JLabel dstIpLabel = new JLabel("목적지 IP:");
+        dstIpLabel.setForeground(Color.BLACK);
+        panel.add(dstIpLabel, gbc);
         
         gbc.gridx = 1; gbc.gridy = 2;
         dstIpField = new JTextField("192.168.0.101", 15);
+        dstIpField.setBackground(Color.WHITE);
+        dstIpField.setForeground(Color.BLACK);
         panel.add(dstIpField, gbc);
         
         // 설정 버튼
@@ -220,18 +257,23 @@ public class ARPChatApp {
      */
     private static JPanel createCenterPanel() {
         JPanel panel = new JPanel(new GridLayout(1, 2, 10, 0));
+        panel.setBackground(Color.WHITE);
         
         // 채팅 표시 영역
         JPanel chatPanel = new JPanel(new BorderLayout());
+        chatPanel.setBackground(Color.WHITE);
         chatPanel.setBorder(BorderFactory.createTitledBorder("메시지"));
         textArea = new JTextArea();
         textArea.setEditable(false);
         textArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        textArea.setBackground(Color.WHITE);
+        textArea.setForeground(Color.BLACK);
         JScrollPane chatScroll = new JScrollPane(textArea);
         chatPanel.add(chatScroll, BorderLayout.CENTER);
         
         // ARP 테이블
         JPanel arpPanel = new JPanel(new BorderLayout());
+        arpPanel.setBackground(Color.WHITE);
         arpPanel.setBorder(BorderFactory.createTitledBorder("ARP 캐시 테이블"));
         
         String[] columns = {"IP 주소", "MAC 주소"};
@@ -242,6 +284,10 @@ public class ARPChatApp {
             }
         };
         arpTable = new JTable(arpTableModel);
+        arpTable.setBackground(Color.WHITE);
+        arpTable.setForeground(Color.BLACK);
+        arpTable.getTableHeader().setBackground(new Color(240, 240, 240));
+        arpTable.getTableHeader().setForeground(Color.BLACK);
         JScrollPane tableScroll = new JScrollPane(arpTable);
         arpPanel.add(tableScroll, BorderLayout.CENTER);
         
@@ -261,12 +307,16 @@ public class ARPChatApp {
      */
     private static JPanel createBottomPanel() {
         JPanel panel = new JPanel(new BorderLayout(5, 5));
+        panel.setBackground(Color.WHITE);
         
         // 메시지 입력 패널
         JPanel messagePanel = new JPanel(new BorderLayout(5, 5));
+        messagePanel.setBackground(Color.WHITE);
         messagePanel.setBorder(BorderFactory.createTitledBorder("메시지 전송"));
         
         messageField = new JTextField();
+        messageField.setBackground(Color.WHITE);
+        messageField.setForeground(Color.BLACK);
         messageField.addActionListener(e -> handleSendMessage());
         messagePanel.add(messageField, BorderLayout.CENTER);
         
@@ -276,14 +326,19 @@ public class ARPChatApp {
         
         // 파일 전송 패널
         JPanel filePanel = new JPanel(new BorderLayout(5, 5));
+        filePanel.setBackground(Color.WHITE);
         filePanel.setBorder(BorderFactory.createTitledBorder("파일 전송"));
         
         JPanel fileInputPanel = new JPanel(new BorderLayout(5, 5));
+        fileInputPanel.setBackground(Color.WHITE);
         filePathField = new JTextField();
+        filePathField.setBackground(Color.WHITE);
+        filePathField.setForeground(Color.BLACK);
         filePathField.setEditable(false);
         fileInputPanel.add(filePathField, BorderLayout.CENTER);
         
         JPanel fileButtonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 0));
+        fileButtonPanel.setBackground(Color.WHITE);
         JButton browseButton = new JButton("파일 선택");
         browseButton.addActionListener(e -> handleBrowseFile());
         fileButtonPanel.add(browseButton);
@@ -297,15 +352,18 @@ public class ARPChatApp {
         
         // 진행 표시
         JPanel progressPanel = new JPanel(new BorderLayout(5, 5));
+        progressPanel.setBackground(Color.WHITE);
         fileProgressBar = new JProgressBar(0, 100);
         fileProgressBar.setStringPainted(true);
         progressPanel.add(fileProgressBar, BorderLayout.CENTER);
         
         fileStatusLabel = new JLabel(" ");
+        fileStatusLabel.setForeground(Color.BLACK);
         progressPanel.add(fileStatusLabel, BorderLayout.SOUTH);
         filePanel.add(progressPanel, BorderLayout.CENTER);
         
         JPanel combinedPanel = new JPanel(new GridLayout(2, 1, 5, 5));
+        combinedPanel.setBackground(Color.WHITE);
         combinedPanel.add(messagePanel);
         combinedPanel.add(filePanel);
         
