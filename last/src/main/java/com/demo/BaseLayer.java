@@ -19,12 +19,11 @@ import java.util.ArrayList;
  *   수신: 네트워크 --> Physical --Receive--> Ethernet --Receive--> ChatApp
  */
 public interface BaseLayer {
+	// ===== 인터페이스 필드 (사용되지 않음, 각 구현체에서 선언) =====
 	// 인터페이스의 필드는 자동으로 public static final이므로 실제로는 사용되지 않음
-	// 각 구현 클래스에서 자체적으로 필드를 선언합니다
-	public final String layerName = null;
-	public final BaseLayer underLayer = null;
-	public final ArrayList<BaseLayer> upperLayers = new ArrayList<BaseLayer>();
-	public final int upperLayerCount = 0;
+	public final String LAYER_NAME_PLACEHOLDER = null;
+	public final BaseLayer LOWER_LAYER_PLACEHOLDER = null;
+	public final ArrayList<BaseLayer> UPPER_LAYERS_PLACEHOLDER = new ArrayList<BaseLayer>();
 
 	/**
 	 * 계층의 이름을 반환합니다.
@@ -48,15 +47,15 @@ public interface BaseLayer {
 
 	/**
 	 * 하위 계층을 설정합니다.
-	 * @param pUnderLayer 연결할 하위 계층
+	 * @param lowerLayer 연결할 하위 계층
 	 */
-	public void SetUnderLayer(BaseLayer pUnderLayer);
+	public void SetUnderLayer(BaseLayer lowerLayer);
 
 	/**
 	 * 상위 계층을 추가합니다.
-	 * @param pUpperLayer 연결할 상위 계층
+	 * @param upperLayer 연결할 상위 계층
 	 */
-	public void SetUpperLayer(BaseLayer pUpperLayer);
+	public void SetUpperLayer(BaseLayer upperLayer);
 
 	/**
 	 * 데이터를 하위 계층으로 전송합니다. (송신 방향)

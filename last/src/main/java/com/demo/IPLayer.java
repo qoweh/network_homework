@@ -38,39 +38,41 @@ import java.util.List;
  * 이 구현에서는 간단한 IP 헤더만 생성 (Version 4, IHL 5, 옵션 없음)
  */
 public class IPLayer implements BaseLayer {
-    private final String name = "IP";
-    private BaseLayer underLayer; // 하위 계층: EthernetLayer (데이터 전송용)
-    private ARPLayer arpLayer;    // ARP 계층: IP→MAC 주소 변환용
-    private final List<BaseLayer> uppers = new ArrayList<>(); // 상위 계층: ChatAppLayer
+    // ===== 계층 기본 정보 =====
+    private static final String LAYER_NAME = "IP";
+    private BaseLayer lowerLayer;              // 하위 계층: EthernetLayer
+    private ARPLayer arpLayer;                  // ARP 계층: IP→MAC 주소 변환용
+    private final List<BaseLayer> upperLayers = new ArrayList<>(); // 상위 계층: ChatAppLayer, FileAppLayer
     
-    // 자신의 IP 주소
-    private byte[] myIp = new byte[4];
+    // ===== IP 주소 설정 =====
+    private byte[] sourceIpAddress = new byte[4];      // 자신의 IP 주소
+    private byte[] destinationIpAddress = new byte[4]; // 목적지 IP 주소
     
-    // 목적지 IP 주소
-    private byte[] dstIp = new byte[4];
+    // ===== IP 헤더 상수 =====
+    private static final int IPV4_VERSION = 4;               // IPv4
+    private static final int IP_HEADER_LENGTH_UNITS = 5;     // 5 * 4 = 20바이트 (옵션 없음)
+    private static final int DEFAULT_TTL = 128;              // Time to Live
     
-    // IP 헤더 필드
-    private static final int IP_VERSION = 4;           // IPv4
-    private static final int IP_HEADER_LENGTH = 5;     // 5 * 4 = 20바이트 (옵션 없음)
-    private static final int IP_TTL = 128;             // Time to Live
+    // ===== 프로토콜 번호 상수 =====
     @SuppressWarnings("unused")
-    private static final int IP_PROTOCOL_TCP = 6;      // TCP 프로토콜 (향후 확장용)
+    private static final int PROTOCOL_TCP = 6;               // TCP (향후 확장용)
     @SuppressWarnings("unused")
-    private static final int IP_PROTOCOL_UDP = 17;     // UDP 프로토콜 (향후 확장용)
-    private static final int IP_PROTOCOL_CHAT = 253;   // ChatApp 프로토콜
-    private static final int IP_PROTOCOL_FILE = 254;   // FileApp 프로토콜
+    private static final int PROTOCOL_UDP = 17;              // UDP (향후 확장용)
+    private static final int PROTOCOL_CHAT_APP = 253;        // ChatApp 프로토콜
+    private static final int PROTOCOL_FILE_APP = 254;        // FileApp 프로토콜
     
-    private int ipIdentification = 0; // IP 패킷 ID (증가)
-    private int currentProtocol = IP_PROTOCOL_CHAT; // 현재 사용할 프로토콜 (기본값: ChatApp)
+    // ===== 패킷 ID 및 프로토콜 설정 =====
+    private int packetIdentification = 0;                     // IP 패킷 ID (증가)
+    private int currentProtocol = PROTOCOL_CHAT_APP;          // 현재 사용할 프로토콜
     
-    // ===== 우선순위 관련 =====
-    // TOS 우선순위 값 (상위 3비트)
-    private static final int TOS_HIGH = 0xE0;      // 111 00000 (긴급)
-    private static final int TOS_NORMAL = 0x00;    // 000 00000 (일반)
-    private static final int TOS_LOW = 0x20;       // 001 00000 (낮음)
+    // ===== TOS (Type of Service) 우선순위 상수 =====
+    // TOS 상위 3비트: Precedence (우선순위)
+    private static final int TOS_PRIORITY_HIGH = 0xE0;      // 111 00000 (긴급)
+    private static final int TOS_PRIORITY_NORMAL = 0x00;    // 000 00000 (일반)
+    private static final int TOS_PRIORITY_LOW = 0x20;       // 001 00000 (낮음)
     
-    private int currentTos = TOS_NORMAL; // 현재 TOS 값
-    private ChatAppLayer.Priority lastReceivedPriority = ChatAppLayer.Priority.NORMAL; // 마지막 수신 우선순위
+    private int currentTosValue = TOS_PRIORITY_NORMAL;                                      // 현재 TOS 값
+    private ChatAppLayer.Priority lastReceivedPriority = ChatAppLayer.Priority.NORMAL;  // 마지막 수신 우선순위
     
     /**
      * 자신의 IP 주소 설정
@@ -78,7 +80,7 @@ public class IPLayer implements BaseLayer {
      */
     public void setMyIp(byte[] ip) {
         if (ip != null && ip.length >= 4) {
-            System.arraycopy(ip, 0, myIp, 0, 4);
+            System.arraycopy(ip, 0, sourceIpAddress, 0, 4);
         }
     }
     
@@ -88,7 +90,7 @@ public class IPLayer implements BaseLayer {
      */
     public void setDstIp(byte[] ip) {
         if (ip != null && ip.length >= 4) {
-            System.arraycopy(ip, 0, dstIp, 0, 4);
+            System.arraycopy(ip, 0, destinationIpAddress, 0, 4);
         }
     }
     
@@ -105,7 +107,7 @@ public class IPLayer implements BaseLayer {
      * @return 4바이트 IP 주소
      */
     public byte[] getMyIp() {
-        return Arrays.copyOf(myIp, 4);
+        return Arrays.copyOf(sourceIpAddress, 4);
     }
     
     /**
@@ -113,12 +115,12 @@ public class IPLayer implements BaseLayer {
      * @return 4바이트 IP 주소
      */
     public byte[] getDstIp() {
-        return Arrays.copyOf(dstIp, 4);
+        return Arrays.copyOf(destinationIpAddress, 4);
     }
     
     /**
      * 현재 사용할 프로토콜 설정 (ChatApp 또는 FileApp)
-     * @param protocol IP_PROTOCOL_CHAT(253) 또는 IP_PROTOCOL_FILE(254)
+     * @param protocol PROTOCOL_CHAT_APP(253) 또는 PROTOCOL_FILE_APP(254)
      */
     public void setProtocol(int protocol) {
         this.currentProtocol = protocol;
@@ -128,14 +130,14 @@ public class IPLayer implements BaseLayer {
      * ChatApp 프로토콜로 설정
      */
     public void useChatProtocol() {
-        this.currentProtocol = IP_PROTOCOL_CHAT;
+        this.currentProtocol = PROTOCOL_CHAT_APP;
     }
     
     /**
      * FileApp 프로토콜로 설정
      */
     public void useFileProtocol() {
-        this.currentProtocol = IP_PROTOCOL_FILE;
+        this.currentProtocol = PROTOCOL_FILE_APP;
     }
     
     // ===== 우선순위 관련 메서드 =====
@@ -145,12 +147,12 @@ public class IPLayer implements BaseLayer {
      */
     public void setPriority(ChatAppLayer.Priority priority) {
         switch (priority) {
-            case HIGH -> this.currentTos = TOS_HIGH;
-            case LOW -> this.currentTos = TOS_LOW;
-            default -> this.currentTos = TOS_NORMAL;
+            case HIGH -> this.currentTosValue = TOS_PRIORITY_HIGH;
+            case LOW -> this.currentTosValue = TOS_PRIORITY_LOW;
+            default -> this.currentTosValue = TOS_PRIORITY_NORMAL;
         }
         System.out.println("[IP] 우선순위 설정: " + priority.label + " (TOS=0x" + 
-                          Integer.toHexString(currentTos).toUpperCase() + ")");
+                          Integer.toHexString(currentTosValue).toUpperCase() + ")");
     }
     
     /**
@@ -166,36 +168,38 @@ public class IPLayer implements BaseLayer {
     private ChatAppLayer.Priority priorityFromTos(int tos) {
         int precedence = (tos & 0xE0); // 상위 3비트
         return switch (precedence) {
-            case TOS_HIGH -> ChatAppLayer.Priority.HIGH;
-            case TOS_LOW -> ChatAppLayer.Priority.LOW;
+            case TOS_PRIORITY_HIGH -> ChatAppLayer.Priority.HIGH;
+            case TOS_PRIORITY_LOW -> ChatAppLayer.Priority.LOW;
             default -> ChatAppLayer.Priority.NORMAL;
         };
     }
     
+    // ===== BaseLayer 인터페이스 구현 =====
+    
     @Override
     public String GetLayerName() {
-        return name;
+        return LAYER_NAME;
     }
     
     @Override
     public BaseLayer GetUnderLayer() {
-        return underLayer;
+        return lowerLayer;
     }
     
     @Override
     public BaseLayer GetUpperLayer(int index) {
-        return (index >= 0 && index < uppers.size()) ? uppers.get(index) : null;
+        return (index >= 0 && index < upperLayers.size()) ? upperLayers.get(index) : null;
     }
     
     @Override
-    public void SetUnderLayer(BaseLayer pUnderLayer) {
-        this.underLayer = pUnderLayer;
+    public void SetUnderLayer(BaseLayer layer) {
+        this.lowerLayer = layer;
     }
     
     @Override
-    public void SetUpperLayer(BaseLayer pUpperLayer) {
-        if (!uppers.contains(pUpperLayer)) {
-            uppers.add(pUpperLayer);
+    public void SetUpperLayer(BaseLayer layer) {
+        if (!upperLayers.contains(layer)) {
+            upperLayers.add(layer);
         }
     }
     
@@ -215,26 +219,23 @@ public class IPLayer implements BaseLayer {
      */
     @Override
     public boolean Send(byte[] input, int length) {
-        if (underLayer == null || arpLayer == null) {
+        if (lowerLayer == null || arpLayer == null) {
             System.out.println("[IP] 하위 계층 또는 ARP 계층이 설정되지 않음");
             return false;
         }
         
         // 목적지 IP에 대한 MAC 주소 조회
-        String dstIpStr = formatIp(dstIp);
-        byte[] dstMac = arpLayer.lookupArpCache(dstIpStr);
+        String destinationIpStr = formatIp(destinationIpAddress);
+        byte[] destinationMac = arpLayer.lookupArpCache(destinationIpStr);
         
         // ARP 캐시에 없으면 ARP Request 전송
-        if (dstMac == null) {
-            System.out.println("[IP] ARP 캐시에 " + dstIpStr + " 없음 - ARP Request 전송");
-            arpLayer.sendArpRequest(dstIp);
-            
-            // 실제로는 ARP Reply를 기다려야 하지만, 간단한 구현으로 실패 반환
-            // 개선: ARP Reply 수신 후 재전송 큐에 추가
+        if (destinationMac == null) {
+            System.out.println("[IP] ARP 캐시에 " + destinationIpStr + " 없음 - ARP Request 전송");
+            arpLayer.sendArpRequest(destinationIpAddress);
             return false;
         }
         
-        System.out.println("[IP] 목적지 MAC 주소 발견: " + formatMac(dstMac));
+        System.out.println("[IP] 목적지 MAC 주소 발견: " + formatMac(destinationMac));
         
         // IP 패킷 생성: IP 헤더(20바이트) + 페이로드
         int totalLength = 20 + length;
@@ -244,52 +245,48 @@ public class IPLayer implements BaseLayer {
         // ===== IP 헤더 생성 (20바이트) =====
         
         // Version (4비트) + IHL (4비트) = 1바이트
-        // Version=4, IHL=5 → 0x45
-        buffer.put((byte) ((IP_VERSION << 4) | IP_HEADER_LENGTH));
+        buffer.put((byte) ((IPV4_VERSION << 4) | IP_HEADER_LENGTH_UNITS));
         
         // Type of Service (1바이트) - 우선순위 포함
-        buffer.put((byte) currentTos);
+        buffer.put((byte) currentTosValue);
         
         // Total Length (2바이트) - 전체 패킷 크기
         buffer.putShort((short) totalLength);
         
         // Identification (2바이트) - 패킷 ID
-        buffer.putShort((short) (ipIdentification++ & 0xFFFF));
+        buffer.putShort((short) (packetIdentification++ & 0xFFFF));
         
         // Flags (3비트) + Fragment Offset (13비트) = 2바이트
-        // Flags=0 (Don't Fragment 비활성), Offset=0
         buffer.putShort((short) 0);
         
         // Time to Live (1바이트)
-        buffer.put((byte) IP_TTL);
+        buffer.put((byte) DEFAULT_TTL);
         
         // Protocol (1바이트) - ChatApp(253) 또는 FileApp(254)
         buffer.put((byte) currentProtocol);
         
         // Header Checksum (2바이트) - 간단한 구현으로 0 사용
-        // 실제로는 IP 헤더의 체크섬 계산 필요
         buffer.putShort((short) 0);
         
         // Source IP Address (4바이트)
-        buffer.put(myIp);
+        buffer.put(sourceIpAddress);
         
         // Destination IP Address (4바이트)
-        buffer.put(dstIp);
+        buffer.put(destinationIpAddress);
         
         // ===== 페이로드 복사 =====
         buffer.put(input, 0, length);
         
-        System.out.println("[IP] 패킷 전송: " + formatIp(myIp) + " -> " + formatIp(dstIp) + 
+        System.out.println("[IP] 패킷 전송: " + formatIp(sourceIpAddress) + " -> " + formatIp(destinationIpAddress) + 
                          " (길이: " + totalLength + "바이트)");
         
-        // EthernetLayer의 목적지 MAC을 설정해야 함
-        // EthernetLayer를 직접 호출하여 MAC 설정
-        if (underLayer instanceof EthernetLayer) {
-            ((EthernetLayer) underLayer).setDstMac(dstMac);
+        // EthernetLayer의 목적지 MAC을 설정
+        if (lowerLayer instanceof EthernetLayer ethernetLayer) {
+            ethernetLayer.setDstMac(destinationMac);
         }
         
         // 하위 계층(Ethernet)으로 전송
-        return underLayer.Send(ipPacket, ipPacket.length);
+        return lowerLayer.Send(ipPacket, ipPacket.length);
     }
     
     /**
@@ -320,7 +317,7 @@ public class IPLayer implements BaseLayer {
         int ihl = versionIhl & 0x0F;
         
         // IPv4만 처리
-        if (version != IP_VERSION) {
+        if (version != IPV4_VERSION) {
             return false;
         }
         
@@ -354,18 +351,18 @@ public class IPLayer implements BaseLayer {
         buffer.getShort();
         
         // Source IP
-        byte[] srcIp = new byte[4];
-        buffer.get(srcIp);
+        byte[] senderIp = new byte[4];
+        buffer.get(senderIp);
         
         // Destination IP
-        byte[] dstIpReceived = new byte[4];
-        buffer.get(dstIpReceived);
+        byte[] receivedDestIp = new byte[4];
+        buffer.get(receivedDestIp);
         
-        System.out.println("[IP] 패킷 수신: " + formatIp(srcIp) + " -> " + formatIp(dstIpReceived) +
+        System.out.println("[IP] 패킷 수신: " + formatIp(senderIp) + " -> " + formatIp(receivedDestIp) +
                          " (프로토콜: " + protocol + ")");
         
         // 목적지 IP 필터링 - 자신의 IP인 경우만 수락
-        if (!Arrays.equals(dstIpReceived, myIp)) {
+        if (!Arrays.equals(receivedDestIp, sourceIpAddress)) {
             System.out.println("[IP] 목적지 IP 불일치 - 패킷 드롭");
             return false;
         }
@@ -380,17 +377,17 @@ public class IPLayer implements BaseLayer {
         
         // ===== IP 역다중화: Protocol 필드에 따라 상위 계층 선택 =====
         boolean delivered = false;
-        for (BaseLayer upper : uppers) {
+        for (BaseLayer upperLayer : upperLayers) {
             // ChatApp 프로토콜 (253)
-            if (protocol == IP_PROTOCOL_CHAT && upper instanceof ChatAppLayer) {
+            if (protocol == PROTOCOL_CHAT_APP && upperLayer instanceof ChatAppLayer) {
                 System.out.println("[IP] ChatApp으로 전달 (" + payload.length + "바이트)");
-                upper.Receive(payload);
+                upperLayer.Receive(payload);
                 delivered = true;
             }
             // FileApp 프로토콜 (254)
-            else if (protocol == IP_PROTOCOL_FILE && upper instanceof FileAppLayer) {
+            else if (protocol == PROTOCOL_FILE_APP && upperLayer instanceof FileAppLayer) {
                 System.out.println("[IP] FileApp으로 전달 (" + payload.length + "바이트)");
-                upper.Receive(payload);
+                upperLayer.Receive(payload);
                 delivered = true;
             }
         }

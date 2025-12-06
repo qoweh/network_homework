@@ -39,28 +39,31 @@ import java.util.function.Consumer;
  * - 0x80: 암호화 플래그 (데이터가 암호화됨)
  */
 public class ChatAppLayer implements BaseLayer {
-    private final String name = "ChatApp";
-    private BaseLayer underLayer; // 하위 계층: IPLayer
-    private final List<BaseLayer> uppers = new ArrayList<>();
-    private Consumer<String> onReceive; // 메시지 수신 시 호출될 콜백 함수
-    private BiConsumer<String, Long> onReceiveWithLatency; // 지연시간 포함 콜백
+    // ===== 계층 기본 정보 =====
+    private static final String LAYER_NAME = "ChatApp";
+    private BaseLayer lowerLayer; // 하위 계층: IPLayer
+    private final List<BaseLayer> upperLayers = new ArrayList<>();
     
-    // Fragment 타입
-    private static final byte TYPE_CHAT_SINGLE = 0x01;
-    private static final byte TYPE_CHAT_FRAGMENT = 0x02;
+    // ===== 콜백 함수 =====
+    private Consumer<String> messageReceivedCallback;
+    private BiConsumer<String, Long> messageReceivedWithLatencyCallback;
     
-    // 암호화 관련 상수
-    private static final byte FLAG_ENCRYPTED = (byte) 0x80;  // 10000000 (최상위 비트)
-    private static final byte TYPE_MASK = 0x7F;               // 01111111 (타입 마스크)
-    private static final byte ENCRYPTION_KEY = 0x42;          // 암호화 키 (고정)
+    // ===== 메시지 타입 상수 =====
+    private static final byte MSG_TYPE_SINGLE = 0x01;      // 단일 메시지 (Fragment 불필요)
+    private static final byte MSG_TYPE_FRAGMENT = 0x02;    // Fragment화된 메시지
     
-    // Fragment 크기 (최대 페이로드)
-    private static final int MAX_DATA_SIZE = 512; // 512 bytes per fragment
+    // ===== 암호화 관련 상수 =====
+    private static final byte ENCRYPTION_FLAG = (byte) 0x80;  // 10000000 (암호화 플래그)
+    private static final byte MSG_TYPE_MASK = 0x7F;            // 01111111 (타입 마스크)
+    private static final byte XOR_ENCRYPTION_KEY = 0x42;       // XOR 암호화 키
     
-    // 수신 중인 메시지 재조립 버퍼
-    private final Map<Integer, ChatReceiveContext> receivingMessages = new ConcurrentHashMap<>();
+    // ===== Fragment 설정 =====
+    private static final int MAX_FRAGMENT_SIZE = 512; // Fragment당 최대 데이터 크기 (바이트)
     
-    // ===== 새로운 기능: 암호화 =====
+    // ===== 메시지 재조립 버퍼 =====
+    private final Map<Integer, MessageReassemblyBuffer> reassemblyBuffers = new ConcurrentHashMap<>();
+    
+    // ===== 암호화 설정 =====
     private boolean encryptionEnabled = false;
     
     // ===== 새로운 기능: 우선순위 =====
@@ -80,79 +83,79 @@ public class ChatAppLayer implements BaseLayer {
     
     private Priority currentPriority = Priority.NORMAL;
     
-    // 우선순위 메시지 클래스
-    private static class PriorityMessage implements Comparable<PriorityMessage> {
-        final String text;
+    // ===== 우선순위 메시지 래퍼 클래스 =====
+    private static class PrioritizedMessage implements Comparable<PrioritizedMessage> {
+        final String content;
         final Priority priority;
-        final long timestamp;
-        final long sendTime;
+        final long queuedAt;      // 큐에 추가된 시간
+        final long sentAt;        // 원본 전송 시간
         
-        PriorityMessage(String text, Priority priority, long sendTime) {
-            this.text = text;
+        PrioritizedMessage(String content, Priority priority, long sentAt) {
+            this.content = content;
             this.priority = priority;
-            this.sendTime = sendTime;
-            this.timestamp = System.currentTimeMillis();
+            this.sentAt = sentAt;
+            this.queuedAt = System.currentTimeMillis();
         }
         
         @Override
-        public int compareTo(PriorityMessage other) {
-            // 1. 우선순위가 높을수록 먼저 (order 낮을수록 우선)
+        public int compareTo(PrioritizedMessage other) {
+            // 1. 우선순위가 높을수록 먼저 (order 값이 작을수록 우선순위 높음)
             int priorityCompare = Integer.compare(this.priority.order, other.priority.order);
             if (priorityCompare != 0) return priorityCompare;
-            // 2. 같은 우선순위면 먼저 온 것부터
-            return Long.compare(this.timestamp, other.timestamp);
+            // 2. 같은 우선순위면 먼저 큐에 들어온 것부터 (FIFO)
+            return Long.compare(this.queuedAt, other.queuedAt);
         }
     }
     
-    // 우선순위 큐
-    private final PriorityBlockingQueue<PriorityMessage> messageQueue = new PriorityBlockingQueue<>();
-    private Thread processingThread;
-    private volatile boolean running = true;
+    // ===== 우선순위 큐 =====
+    private final PriorityBlockingQueue<PrioritizedMessage> priorityMessageQueue = new PriorityBlockingQueue<>();
+    private Thread messageProcessorThread;
+    private volatile boolean isProcessorRunning = true;
     
-    // ===== 새로운 기능: 로깅 =====
-    private static final String LOG_FILE = "packet.log";
-    private static PrintWriter logWriter;
+    // ===== 로깅 설정 =====
+    private static final String LOG_FILE_PATH = "packet.log";
+    private static PrintWriter logFileWriter;
     private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
     
     static {
         try {
-            logWriter = new PrintWriter(new FileWriter(LOG_FILE, true), true);
+            logFileWriter = new PrintWriter(new FileWriter(LOG_FILE_PATH, true), true);
         } catch (IOException e) {
             System.err.println("[ChatApp] 로그 파일 생성 실패: " + e.getMessage());
         }
     }
     
     /**
-     * 채팅 메시지 수신 컨텍스트
+     * 메시지 재조립 버퍼 (Fragment화된 메시지 수집)
      */
-    private static class ChatReceiveContext {
-        int totalSequences;
-        Map<Integer, byte[]> fragments = new HashMap<>();
-        long sendTimestamp; // 송신 시 타임스탬프
-        Priority priority = Priority.NORMAL;
+    private static class MessageReassemblyBuffer {
+        int expectedFragmentCount;
+        Map<Integer, byte[]> receivedFragments = new HashMap<>();
+        long originalSentTimestamp;
+        Priority messagePriority = Priority.NORMAL;
         
-        ChatReceiveContext(int totalSequences) {
-            this.totalSequences = totalSequences;
+        MessageReassemblyBuffer(int expectedFragmentCount) {
+            this.expectedFragmentCount = expectedFragmentCount;
         }
         
         boolean isComplete() {
-            return fragments.size() >= totalSequences;
+            return receivedFragments.size() >= expectedFragmentCount;
         }
         
-        byte[] assembleMessage() {
+        byte[] reassembleMessage() {
             int totalSize = 0;
-            for (byte[] frag : fragments.values()) {
-                totalSize += frag.length;
+            for (byte[] fragment : receivedFragments.values()) {
+                totalSize += fragment.length;
             }
             
             byte[] result = new byte[totalSize];
             int offset = 0;
             
-            for (int i = 0; i < totalSequences; i++) {
-                byte[] frag = fragments.get(i);
-                if (frag != null) {
-                    System.arraycopy(frag, 0, result, offset, frag.length);
-                    offset += frag.length;
+            for (int i = 0; i < expectedFragmentCount; i++) {
+                byte[] fragment = receivedFragments.get(i);
+                if (fragment != null) {
+                    System.arraycopy(fragment, 0, result, offset, fragment.length);
+                    offset += fragment.length;
                 }
             }
             
@@ -162,26 +165,26 @@ public class ChatAppLayer implements BaseLayer {
 
     /**
      * ChatAppLayer 생성자
-     * @param onReceive 메시지 수신 시 호출될 콜백 함수 (예: UI에 메시지 표시)
+     * @param messageCallback 메시지 수신 시 호출될 콜백 함수 (예: UI에 메시지 표시)
      */
-    public ChatAppLayer(Consumer<String> onReceive) {
-        this.onReceive = onReceive;
-        startMessageProcessing();
+    public ChatAppLayer(Consumer<String> messageCallback) {
+        this.messageReceivedCallback = messageCallback;
+        startMessageProcessor();
     }
 
     /**
      * 수신 콜백 함수를 변경합니다.
-     * @param onReceive 새로운 콜백 함수
+     * @param callback 새로운 콜백 함수
      */
-    public void setOnReceive(Consumer<String> onReceive) {
-        this.onReceive = onReceive;
+    public void setOnReceive(Consumer<String> callback) {
+        this.messageReceivedCallback = callback;
     }
     
     /**
      * 지연시간 포함 수신 콜백 설정
      */
     public void setOnReceiveWithLatency(BiConsumer<String, Long> callback) {
-        this.onReceiveWithLatency = callback;
+        this.messageReceivedWithLatencyCallback = callback;
     }
     
     // ===== 암호화 기능 메서드 =====
@@ -204,7 +207,7 @@ public class ChatAppLayer implements BaseLayer {
     /**
      * XOR 암호화/복호화 (동일 연산)
      */
-    private byte[] xorCrypt(byte[] data, byte key) {
+    private byte[] applyXorEncryption(byte[] data, byte key) {
         byte[] result = new byte[data.length];
         for (int i = 0; i < data.length; i++) {
             result[i] = (byte) (data[i] ^ key);
@@ -232,45 +235,45 @@ public class ChatAppLayer implements BaseLayer {
     /**
      * 메시지 처리 스레드 시작
      */
-    private void startMessageProcessing() {
-        processingThread = new Thread(() -> {
-            while (running) {
+    private void startMessageProcessor() {
+        messageProcessorThread = new Thread(() -> {
+            while (isProcessorRunning) {
                 try {
-                    PriorityMessage msg = messageQueue.take();
-                    long receiveTime = System.currentTimeMillis();
-                    long latency = receiveTime - msg.sendTime;
+                    PrioritizedMessage msg = priorityMessageQueue.take();
+                    long receivedAt = System.currentTimeMillis();
+                    long networkLatency = receivedAt - msg.sentAt;
                     
                     String formattedMessage = String.format("%s %s (지연: %dms)", 
-                        msg.priority.label, msg.text, latency);
+                        msg.priority.label, msg.content, networkLatency);
                     
-                    log("RECV", String.format("%s (send=%d, recv=%d, latency=%dms)", 
-                        msg.text, msg.sendTime, receiveTime, latency));
+                    log("RECV", String.format("%s (sent=%d, received=%d, latency=%dms)", 
+                        msg.content, msg.sentAt, receivedAt, networkLatency));
                     
-                    if (onReceiveWithLatency != null) {
-                        onReceiveWithLatency.accept(formattedMessage, latency);
-                    } else if (onReceive != null) {
-                        onReceive.accept(formattedMessage);
+                    if (messageReceivedWithLatencyCallback != null) {
+                        messageReceivedWithLatencyCallback.accept(formattedMessage, networkLatency);
+                    } else if (messageReceivedCallback != null) {
+                        messageReceivedCallback.accept(formattedMessage);
                     }
                     
-                    // 약간의 딜레이로 UI 업데이트 시간 확보
+                    // UI 업데이트 시간 확보
                     Thread.sleep(50);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     break;
                 }
             }
-        }, "MessageProcessor");
-        processingThread.setDaemon(true);
-        processingThread.start();
+        }, "ChatMessageProcessor");
+        messageProcessorThread.setDaemon(true);
+        messageProcessorThread.start();
     }
     
     /**
      * 메시지 처리 중지
      */
     public void stopMessageProcessing() {
-        running = false;
-        if (processingThread != null) {
-            processingThread.interrupt();
+        isProcessorRunning = false;
+        if (messageProcessorThread != null) {
+            messageProcessorThread.interrupt();
         }
     }
     
@@ -280,12 +283,12 @@ public class ChatAppLayer implements BaseLayer {
      * 로그 기록
      */
     private void log(String action, String message) {
-        if (logWriter == null) return;
+        if (logFileWriter == null) return;
         
         String timestamp = DATE_FORMAT.format(new Date());
         String logLine = String.format("%s [%s] %s", timestamp, action, message);
         
-        logWriter.println(logLine);
+        logFileWriter.println(logLine);
         System.out.println("[ChatApp:LOG] " + logLine);
     }
     
@@ -293,7 +296,7 @@ public class ChatAppLayer implements BaseLayer {
      * 로그 파일 경로 반환
      */
     public static String getLogFilePath() {
-        return LOG_FILE;
+        return LOG_FILE_PATH;
     }
 
     /**
@@ -307,58 +310,58 @@ public class ChatAppLayer implements BaseLayer {
      * @return 전송 성공 여부
      */
     public boolean sendMessage(String text) {
-        if (underLayer == null) return false;
+        if (lowerLayer == null) return false;
         
-        byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
-        long sendTime = System.currentTimeMillis();
+        byte[] messageBytes = text.getBytes(StandardCharsets.UTF_8);
+        long sentTimestamp = System.currentTimeMillis();
         
         // 암호화 처리
-        byte[] dataToSend = bytes;
+        byte[] dataToSend = messageBytes;
         if (encryptionEnabled) {
-            dataToSend = xorCrypt(bytes, ENCRYPTION_KEY);
-            log("SEND", text + " [암호화됨] (timestamp=" + sendTime + ")");
+            dataToSend = applyXorEncryption(messageBytes, XOR_ENCRYPTION_KEY);
+            log("SEND", text + " [암호화됨] (timestamp=" + sentTimestamp + ")");
         } else {
-            log("SEND", text + " (timestamp=" + sendTime + ")");
+            log("SEND", text + " (timestamp=" + sentTimestamp + ")");
         }
         
         // Type 바이트 생성 (암호화 플래그 포함)
-        byte typeFlag = encryptionEnabled ? FLAG_ENCRYPTED : 0;
+        byte typeFlag = encryptionEnabled ? ENCRYPTION_FLAG : 0;
         byte priorityByte = (byte) currentPriority.order;
         
         // 작은 메시지는 Fragment화하지 않음
-        if (dataToSend.length <= MAX_DATA_SIZE) {
-            // TYPE_CHAT_SINGLE + Priority + Timestamp + Data
+        if (dataToSend.length <= MAX_FRAGMENT_SIZE) {
+            // MSG_TYPE_SINGLE + Priority + Timestamp + Data
             // 헤더: 1 + 1 + 8 = 10바이트
             ByteBuffer buffer = ByteBuffer.allocate(1 + 1 + 8 + dataToSend.length);
-            buffer.put((byte) (TYPE_CHAT_SINGLE | typeFlag));
+            buffer.put((byte) (MSG_TYPE_SINGLE | typeFlag));
             buffer.put(priorityByte);
-            buffer.putLong(sendTime);
+            buffer.putLong(sentTimestamp);
             buffer.put(dataToSend);
             
-            return underLayer.Send(buffer.array(), buffer.position());
+            return lowerLayer.Send(buffer.array(), buffer.position());
         }
         
         // 큰 메시지는 Fragment화
-        int totalSequences = (int) Math.ceil((double) dataToSend.length / MAX_DATA_SIZE);
-        System.out.println("[ChatApp] 메시지 Fragment화: " + totalSequences + "개");
-        log("SEND", text + " (fragments=" + totalSequences + ", timestamp=" + sendTime + ")");
+        int fragmentCount = (int) Math.ceil((double) dataToSend.length / MAX_FRAGMENT_SIZE);
+        System.out.println("[ChatApp] 메시지 Fragment화: " + fragmentCount + "개");
+        log("SEND", text + " (fragments=" + fragmentCount + ", timestamp=" + sentTimestamp + ")");
         
-        for (int seq = 0; seq < totalSequences; seq++) {
-            int offset = seq * MAX_DATA_SIZE;
-            int length = Math.min(MAX_DATA_SIZE, dataToSend.length - offset);
+        for (int seq = 0; seq < fragmentCount; seq++) {
+            int offset = seq * MAX_FRAGMENT_SIZE;
+            int length = Math.min(MAX_FRAGMENT_SIZE, dataToSend.length - offset);
             byte[] fragment = Arrays.copyOfRange(dataToSend, offset, offset + length);
             
-            // TYPE_CHAT_FRAGMENT + Priority + Timestamp + Sequence + TotalSeq + Data
+            // MSG_TYPE_FRAGMENT + Priority + Timestamp + Sequence + TotalSeq + Data
             // 헤더: 1 + 1 + 8 + 4 + 4 = 18바이트
             ByteBuffer buffer = ByteBuffer.allocate(1 + 1 + 8 + 4 + 4 + fragment.length);
-            buffer.put((byte) (TYPE_CHAT_FRAGMENT | typeFlag));
+            buffer.put((byte) (MSG_TYPE_FRAGMENT | typeFlag));
             buffer.put(priorityByte);
-            buffer.putLong(sendTime);
+            buffer.putLong(sentTimestamp);
             buffer.putInt(seq);
-            buffer.putInt(totalSequences);
+            buffer.putInt(fragmentCount);
             buffer.put(fragment);
             
-            if (!underLayer.Send(buffer.array(), buffer.position())) {
+            if (!lowerLayer.Send(buffer.array(), buffer.position())) {
                 System.err.println("[ChatApp] Fragment 전송 실패: " + seq);
                 return false;
             }
@@ -368,24 +371,24 @@ public class ChatAppLayer implements BaseLayer {
     }
 
     @Override
-    public String GetLayerName() { return name; }
+    public String GetLayerName() { return LAYER_NAME; }
 
     @Override
-    public BaseLayer GetUnderLayer() { return underLayer; }
+    public BaseLayer GetUnderLayer() { return lowerLayer; }
 
     @Override
     public BaseLayer GetUpperLayer(int index) { 
-        return (index >=0 && index < uppers.size()) ? uppers.get(index) : null; 
+        return (index >= 0 && index < upperLayers.size()) ? upperLayers.get(index) : null; 
     }
 
     @Override
-    public void SetUnderLayer(BaseLayer pUnderLayer) { 
-        this.underLayer = pUnderLayer; 
+    public void SetUnderLayer(BaseLayer layer) { 
+        this.lowerLayer = layer; 
     }
 
     @Override
-    public void SetUpperLayer(BaseLayer pUpperLayer) { 
-        if (!uppers.contains(pUpperLayer)) uppers.add(pUpperLayer); 
+    public void SetUpperLayer(BaseLayer layer) { 
+        if (!upperLayers.contains(layer)) upperLayers.add(layer); 
     }
 
     /**
@@ -418,8 +421,8 @@ public class ChatAppLayer implements BaseLayer {
         byte typeFlagByte = buffer.get();
         
         // 암호화 플래그 추출
-        boolean isEncrypted = (typeFlagByte & FLAG_ENCRYPTED) != 0;
-        byte type = (byte) (typeFlagByte & TYPE_MASK);
+        boolean isEncrypted = (typeFlagByte & ENCRYPTION_FLAG) != 0;
+        byte messageType = (byte) (typeFlagByte & MSG_TYPE_MASK);
         
         // 우선순위 추출 (1바이트)
         byte priorityByte = buffer.get();
@@ -429,49 +432,49 @@ public class ChatAppLayer implements BaseLayer {
         if (buffer.remaining() < 8) {
             return false;
         }
-        long sendTimestamp = buffer.getLong();
+        long originalSentTimestamp = buffer.getLong();
         
-        switch (type) {
-            case TYPE_CHAT_SINGLE:
+        switch (messageType) {
+            case MSG_TYPE_SINGLE:
                 // 단일 메시지 (Fragment화되지 않음)
                 byte[] data = new byte[buffer.remaining()];
                 buffer.get(data);
                 
                 // 복호화 처리
                 if (isEncrypted) {
-                    data = xorCrypt(data, ENCRYPTION_KEY);
+                    data = applyXorEncryption(data, XOR_ENCRYPTION_KEY);
                     System.out.println("[ChatApp] 메시지 복호화됨");
                 }
                 
-                String msg = new String(data, StandardCharsets.UTF_8);
+                String message = new String(data, StandardCharsets.UTF_8);
                 
-                // 우선순위 큐에 추가 (헤더에서 추출한 우선순위 사용)
-                messageQueue.offer(new PriorityMessage(msg, priority, sendTimestamp));
+                // 우선순위 큐에 추가
+                priorityMessageQueue.offer(new PrioritizedMessage(message, priority, originalSentTimestamp));
                 
                 break;
                 
-            case TYPE_CHAT_FRAGMENT:
+            case MSG_TYPE_FRAGMENT:
                 // Fragment화된 메시지
                 if (buffer.remaining() < 8) {
                     return false;
                 }
                 
-                int sequence = buffer.getInt();
-                int totalSequences = buffer.getInt();
+                int sequenceNumber = buffer.getInt();
+                int totalFragments = buffer.getInt();
                 
                 byte[] fragmentData = new byte[buffer.remaining()];
                 buffer.get(fragmentData);
                 
                 // 복호화 처리
                 if (isEncrypted) {
-                    fragmentData = xorCrypt(fragmentData, ENCRYPTION_KEY);
+                    fragmentData = applyXorEncryption(fragmentData, XOR_ENCRYPTION_KEY);
                 }
                 
-                handleFragment(sequence, totalSequences, fragmentData, sendTimestamp, isEncrypted, priority);
+                processFragment(sequenceNumber, totalFragments, fragmentData, originalSentTimestamp, isEncrypted, priority);
                 break;
                 
             default:
-                System.err.println("[ChatApp] 알 수 없는 메시지 타입: " + type);
+                System.err.println("[ChatApp] 알 수 없는 메시지 타입: " + messageType);
                 return false;
         }
         
@@ -481,8 +484,9 @@ public class ChatAppLayer implements BaseLayer {
     /**
      * IPLayer에서 우선순위 추출 (TOS 필드)
      */
+    @SuppressWarnings("unused")
     private Priority extractPriorityFromIPLayer() {
-        if (underLayer instanceof IPLayer ipLayer) {
+        if (lowerLayer instanceof IPLayer ipLayer) {
             return ipLayer.getCurrentReceivedPriority();
         }
         return Priority.NORMAL;
@@ -502,36 +506,37 @@ public class ChatAppLayer implements BaseLayer {
     /**
      * Fragment 처리 및 재조립
      */
-    private void handleFragment(int sequence, int totalSequences, byte[] data, long sendTimestamp, boolean wasEncrypted, Priority priority) {
-        // 고유 ID 생성 (totalSequences를 기준으로)
-        int messageId = totalSequences;
+    private void processFragment(int sequenceNumber, int totalFragments, byte[] data, 
+                                  long sentTimestamp, boolean wasEncrypted, Priority priority) {
+        // 고유 ID 생성 (totalFragments를 기준으로)
+        int messageId = totalFragments;
         
-        ChatReceiveContext context = receivingMessages.get(messageId);
-        if (context == null) {
-            context = new ChatReceiveContext(totalSequences);
-            context.sendTimestamp = sendTimestamp;
-            context.priority = priority;
-            receivingMessages.put(messageId, context);
-            System.out.println("[ChatApp] 새 메시지 수신 시작 (총 " + totalSequences + "개 Fragment)");
+        MessageReassemblyBuffer buffer = reassemblyBuffers.get(messageId);
+        if (buffer == null) {
+            buffer = new MessageReassemblyBuffer(totalFragments);
+            buffer.originalSentTimestamp = sentTimestamp;
+            buffer.messagePriority = priority;
+            reassemblyBuffers.put(messageId, buffer);
+            System.out.println("[ChatApp] 새 메시지 수신 시작 (총 " + totalFragments + "개 Fragment)");
         }
         
         // Fragment 저장
-        context.fragments.put(sequence, data);
-        System.out.println("[ChatApp] Fragment 수신: " + (sequence + 1) + "/" + totalSequences);
+        buffer.receivedFragments.put(sequenceNumber, data);
+        System.out.println("[ChatApp] Fragment 수신: " + (sequenceNumber + 1) + "/" + totalFragments);
         
         // 모든 Fragment 수신 완료 확인
-        if (context.isComplete()) {
-            byte[] completeMessage = context.assembleMessage();
-            String msg = new String(completeMessage, StandardCharsets.UTF_8);
+        if (buffer.isComplete()) {
+            byte[] completeMessage = buffer.reassembleMessage();
+            String message = new String(completeMessage, StandardCharsets.UTF_8);
             
-            System.out.println("[ChatApp] 메시지 재조립 완료: " + msg.length() + "바이트" + 
+            System.out.println("[ChatApp] 메시지 재조립 완료: " + message.length() + "바이트" + 
                               (wasEncrypted ? " [복호화됨]" : ""));
             
             // 우선순위 큐에 추가
-            messageQueue.offer(new PriorityMessage(msg, context.priority, context.sendTimestamp));
+            priorityMessageQueue.offer(new PrioritizedMessage(message, buffer.messagePriority, buffer.originalSentTimestamp));
             
-            // 컨텍스트 제거
-            receivingMessages.remove(messageId);
+            // 버퍼 제거
+            reassemblyBuffers.remove(messageId);
         }
     }
 }

@@ -29,24 +29,26 @@ import java.util.List;
  * FCS는 네트워크 카드(NIC)가 자동으로 추가합니다.
  */
 public class EthernetLayer implements BaseLayer {
-    private final String name = "Ethernet";
-    private BaseLayer underLayer; // 하위 계층: PhysicalLayer
-    private final List<BaseLayer> uppers = new ArrayList<>(); // 상위 계층: IPLayer, ARPLayer
+    // ===== 계층 기본 정보 =====
+    private static final String LAYER_NAME = "Ethernet";
+    private BaseLayer lowerLayer;                             // 하위 계층: PhysicalLayer
+    private final List<BaseLayer> upperLayers = new ArrayList<>(); // 상위 계층: IPLayer, ARPLayer
 
-    private byte[] srcMac = new byte[6];  // 출발지 MAC 주소 (이 컴퓨터의 NIC MAC)
-    private byte[] dstMac = new byte[6];  // 목적지 MAC 주소 (상대방 NIC MAC 또는 브로드캐스트)
-    private int etherType = 0x0800;       // EtherType 필드 (기본값: 0x0800 = IPv4)
+    // ===== MAC 주소 설정 =====
+    private byte[] sourceMacAddress = new byte[6];      // 출발지 MAC 주소 (이 컴퓨터의 NIC MAC)
+    private byte[] destinationMacAddress = new byte[6]; // 목적지 MAC 주소 (상대방 NIC MAC 또는 브로드캐스트)
+    private int etherType = 0x0800;                      // EtherType 필드 (기본값: 0x0800 = IPv4)
     
-    // EtherType 상수
-    private static final int ETHERTYPE_IP = 0x0800;   // IPv4
-    private static final int ETHERTYPE_ARP = 0x0806;  // ARP
+    // ===== EtherType 상수 =====
+    private static final int ETHER_TYPE_IPV4 = 0x0800;   // IPv4
+    private static final int ETHER_TYPE_ARP = 0x0806;    // ARP
 
     /**
      * 출발지 MAC 주소를 설정합니다.
      * @param mac 6바이트 MAC 주소
      */
     public void setSrcMac(byte[] mac) { 
-        if (mac != null && mac.length >= 6) System.arraycopy(mac,0,srcMac,0,6); 
+        if (mac != null && mac.length >= 6) System.arraycopy(mac, 0, sourceMacAddress, 0, 6); 
     }
 
     /**
@@ -54,16 +56,16 @@ public class EthernetLayer implements BaseLayer {
      * @param mac 6바이트 MAC 주소 (브로드캐스트는 FF:FF:FF:FF:FF:FF)
      */
     public void setDstMac(byte[] mac) { 
-        if (mac != null && mac.length >= 6) System.arraycopy(mac,0,dstMac,0,6); 
+        if (mac != null && mac.length >= 6) System.arraycopy(mac, 0, destinationMacAddress, 0, 6); 
     }
 
     /**
      * EtherType을 설정합니다.
      * 표준 값: 0x0800=IPv4, 0x0806=ARP, 0x86DD=IPv6
-     * @param et EtherType 값 (2바이트)
+     * @param type EtherType 값 (2바이트)
      */
-    public void setEtherType(int et) { 
-        this.etherType = et & 0xFFFF; 
+    public void setEtherType(int type) { 
+        this.etherType = type & 0xFFFF; 
     }
     
     /**
@@ -71,7 +73,7 @@ public class EthernetLayer implements BaseLayer {
      * @return 6바이트 MAC 주소
      */
     public byte[] getSrcMac() {
-        return Arrays.copyOf(srcMac, 6);
+        return Arrays.copyOf(sourceMacAddress, 6);
     }
     
     /**
@@ -79,28 +81,30 @@ public class EthernetLayer implements BaseLayer {
      * @return 6바이트 MAC 주소
      */
     public byte[] getDstMac() {
-        return Arrays.copyOf(dstMac, 6);
+        return Arrays.copyOf(destinationMacAddress, 6);
     }
 
+    // ===== BaseLayer 인터페이스 구현 =====
+    
     @Override
-    public String GetLayerName() { return name; }
+    public String GetLayerName() { return LAYER_NAME; }
 
     @Override
-    public BaseLayer GetUnderLayer() { return underLayer; }
+    public BaseLayer GetUnderLayer() { return lowerLayer; }
 
     @Override
     public BaseLayer GetUpperLayer(int index) { 
-        return (index>=0 && index<uppers.size()) ? uppers.get(index) : null; 
+        return (index >= 0 && index < upperLayers.size()) ? upperLayers.get(index) : null; 
     }
 
     @Override
-    public void SetUnderLayer(BaseLayer pUnderLayer) { 
-        this.underLayer = pUnderLayer; 
+    public void SetUnderLayer(BaseLayer layer) { 
+        this.lowerLayer = layer; 
     }
 
     @Override
-    public void SetUpperLayer(BaseLayer pUpperLayer) { 
-        if (!uppers.contains(pUpperLayer)) uppers.add(pUpperLayer); 
+    public void SetUpperLayer(BaseLayer layer) { 
+        if (!upperLayers.contains(layer)) upperLayers.add(layer); 
     }
 
     /**
@@ -122,28 +126,29 @@ public class EthernetLayer implements BaseLayer {
      */
     @Override
     public boolean Send(byte[] input, int length) {
-        if (underLayer == null) return false;
+        if (lowerLayer == null) return false;
         
         // Ethernet 프레임 최소 크기 60바이트 (FCS 제외)
-        int minLen = 60;
-        int frameLen = Math.max(minLen, 14 + length);
-        byte[] frame = new byte[frameLen];
+        final int MIN_FRAME_SIZE = 60;
+        final int HEADER_SIZE = 14;
+        int frameLength = Math.max(MIN_FRAME_SIZE, HEADER_SIZE + length);
+        byte[] frame = new byte[frameLength];
         
         // Ethernet 헤더 구성
-        System.arraycopy(dstMac, 0, frame, 0, 6);    // 목적지 MAC (6바이트)
-        System.arraycopy(srcMac, 0, frame, 6, 6);    // 출발지 MAC (6바이트)
+        System.arraycopy(destinationMacAddress, 0, frame, 0, 6);  // 목적지 MAC (6바이트)
+        System.arraycopy(sourceMacAddress, 0, frame, 6, 6);       // 출발지 MAC (6바이트)
         
         // EtherType (2바이트, 빅 엔디안)
         frame[12] = (byte) ((etherType >> 8) & 0xFF);  // 상위 바이트
         frame[13] = (byte) (etherType & 0xFF);         // 하위 바이트
         
         // 페이로드 복사
-        System.arraycopy(input, 0, frame, 14, length);
+        System.arraycopy(input, 0, frame, HEADER_SIZE, length);
         
         // 나머지는 자동으로 0x00으로 초기화되어 패딩 역할
         
         // 하위 계층(Physical)으로 전송
-        return underLayer.Send(frame, frame.length);
+        return lowerLayer.Send(frame, frame.length);
     }
 
     /**
@@ -164,57 +169,56 @@ public class EthernetLayer implements BaseLayer {
     @Override
     public boolean Receive(byte[] input) {
         // 1. 최소 헤더 크기 체크
-        if (input.length < 14) return false;
+        final int HEADER_SIZE = 14;
+        if (input.length < HEADER_SIZE) return false;
         
         // 2. MAC 주소 분석
         
         // 브로드캐스트 체크 (목적지가 FF:FF:FF:FF:FF:FF인지)
-        boolean isBroadcast = true;
+        boolean isBroadcastFrame = true;
         for (int i = 0; i < 6; i++) {
             if ((input[i] & 0xFF) != 0xFF) { 
-                isBroadcast = false; 
+                isBroadcastFrame = false; 
                 break; 
             }
         }
         
         // 목적지가 나인지 체크 (목적지 MAC == 내 MAC)
-        boolean dstIsMe = true;
+        boolean isDestinationMe = true;
         for (int i = 0; i < 6; i++) {
-            if (input[i] != srcMac[i]) {
-                dstIsMe = false; 
+            if (input[i] != sourceMacAddress[i]) {
+                isDestinationMe = false; 
                 break; 
             }
         }
         
         // 출발지가 나인지 체크 (출발지 MAC == 내 MAC)
-        boolean srcIsMe = true;
+        boolean isSourceMe = true;
         for (int i = 0; i < 6; i++) {
-            if (input[6 + i] != srcMac[i]) {
-                srcIsMe = false; 
+            if (input[6 + i] != sourceMacAddress[i]) {
+                isSourceMe = false; 
                 break; 
             }
         }
 
         // 3. 자기 수신 방지: 내가 보낸 프레임은 드롭
-        //    (같은 NIC에서 송신 → 캡처되는 현상 방지)
-        if (srcIsMe) {
-            // System.out.println("[Ethernet] 자기 수신 - 드롭");
+        if (isSourceMe) {
             return false;
         }
         
         // 4. 목적지 필터: 나에게 온 것이거나 브로드캐스트만 수락
-        if (!(dstIsMe || isBroadcast)) {
+        if (!(isDestinationMe || isBroadcastFrame)) {
             // 디버깅: 필터링된 패킷 정보 출력
-            String dstMacStr = String.format("%02X:%02X:%02X:%02X:%02X:%02X",
+            String frameDstMac = String.format("%02X:%02X:%02X:%02X:%02X:%02X",
                 input[0] & 0xFF, input[1] & 0xFF, input[2] & 0xFF,
                 input[3] & 0xFF, input[4] & 0xFF, input[5] & 0xFF);
-            String srcMacStr = String.format("%02X:%02X:%02X:%02X:%02X:%02X",
+            String frameSrcMac = String.format("%02X:%02X:%02X:%02X:%02X:%02X",
                 input[6] & 0xFF, input[7] & 0xFF, input[8] & 0xFF,
                 input[9] & 0xFF, input[10] & 0xFF, input[11] & 0xFF);
             String myMacStr = String.format("%02X:%02X:%02X:%02X:%02X:%02X",
-                srcMac[0] & 0xFF, srcMac[1] & 0xFF, srcMac[2] & 0xFF,
-                srcMac[3] & 0xFF, srcMac[4] & 0xFF, srcMac[5] & 0xFF);
-            System.out.println("[Ethernet] 목적지 필터 - 드롭: " + srcMacStr + " -> " + dstMacStr + " (내 MAC: " + myMacStr + ")");
+                sourceMacAddress[0] & 0xFF, sourceMacAddress[1] & 0xFF, sourceMacAddress[2] & 0xFF,
+                sourceMacAddress[3] & 0xFF, sourceMacAddress[4] & 0xFF, sourceMacAddress[5] & 0xFF);
+            System.out.println("[Ethernet] 목적지 필터 - 드롭: " + frameSrcMac + " -> " + frameDstMac + " (내 MAC: " + myMacStr + ")");
             return false;
         }
 
@@ -222,24 +226,24 @@ public class EthernetLayer implements BaseLayer {
         int receivedEtherType = ((input[12] & 0xFF) << 8) | (input[13] & 0xFF);
         
         // 6. 필터 통과 → 헤더 제거 후 페이로드 추출
-        byte[] payload = Arrays.copyOfRange(input, 14, input.length);
+        byte[] payload = Arrays.copyOfRange(input, HEADER_SIZE, input.length);
         
         // 7. 이더넷 역다중화: EtherType에 따라 상위 계층 선택
         boolean delivered = false;
-        for (BaseLayer upper : uppers) {
+        for (BaseLayer upperLayer : upperLayers) {
             // IPLayer는 0x0800만 처리
-            if (receivedEtherType == ETHERTYPE_IP && upper instanceof IPLayer) {
-                upper.Receive(payload);
+            if (receivedEtherType == ETHER_TYPE_IPV4 && upperLayer instanceof IPLayer) {
+                upperLayer.Receive(payload);
                 delivered = true;
             }
             // ARPLayer는 0x0806만 처리
-            else if (receivedEtherType == ETHERTYPE_ARP && upper instanceof ARPLayer) {
-                upper.Receive(payload);
+            else if (receivedEtherType == ETHER_TYPE_ARP && upperLayer instanceof ARPLayer) {
+                upperLayer.Receive(payload);
                 delivered = true;
             }
-            // 기타 상위 계층 (ChatAppLayer 등 - 하위 호환성)
-            else if (!(upper instanceof IPLayer) && !(upper instanceof ARPLayer)) {
-                upper.Receive(payload);
+            // 기타 상위 계층 (하위 호환성)
+            else if (!(upperLayer instanceof IPLayer) && !(upperLayer instanceof ARPLayer)) {
+                upperLayer.Receive(payload);
                 delivered = true;
             }
         }
