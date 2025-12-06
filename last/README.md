@@ -1,40 +1,38 @@
-# Last - 최종 프로젝트 ⭐
+# 네트워크 채팅 프로그램 - 최종 버전 ⭐
 
-> 암호화, 우선순위 큐, 타임스탬프 기능이 추가된 네트워크 채팅 프로그램
+> OSI 7계층 프로토콜 스택을 직접 구현한 패킷 기반 채팅/파일 전송 프로그램  
+> 3가지 새 기능: **XOR 암호화**, **우선순위 큐**, **타임스탬프/로깅**
 
-## 🚀 실행
+## 🚀 실행 방법
 
-### 로컬 (macOS/Linux)
+### 로컬 실행 (macOS/Linux)
 ```bash
 sudo ./run.sh
 ```
+> ⚠️ 패킷 캡처를 위해 관리자 권한(sudo) 필요
 
-### Docker (Windows/macOS/Linux)
+### Docker 실행
 ```bash
 docker-compose up --build
 ```
 
 ## ✨ 새로운 기능 (3가지)
 
-### 1. 🔒 암호화 통신
-- XOR 암호화 (키: 0x42)
-- 헤더 플래그로 암호화 여부 표시
-- GUI 체크박스로 On/Off
-
-### 2. ⚡ 우선순위 큐
-- 긴급 (HIGH): TOS 0xE0
-- 일반 (NORMAL): TOS 0x00
-- 낮음 (LOW): TOS 0x20
-- GUI 콤보박스로 선택
-
-### 3. 📊 타임스탬프/로깅
-- 8바이트 타임스탬프 헤더
-- 지연시간(Latency) 측정
-- packet.log 파일 기록
+| 기능 | 구현 위치 | 설명 |
+|------|----------|------|
+| 🔒 **암호화 통신** | ChatAppLayer | XOR 암호화 (키: 0x42), 헤더 플래그로 암호화 여부 표시 |
+| ⚡ **우선순위 큐** | IPLayer + ChatAppLayer | TOS 필드 활용 (HIGH=0xE0, NORMAL=0x00, LOW=0x20) |
+| 📊 **타임스탬프/로깅** | ChatAppLayer | 8바이트 타임스탬프, 지연시간 측정, packet.log 기록 |
 
 ## 📦 패킷 헤더 구조
 ```
 [Type+Flag(1B)] [Priority(1B)] [Timestamp(8B)] [Seq(4B)] [Total(4B)] [Data]
+     │               │              │             │           │
+     │               │              │             │           └─ Fragment 총 개수
+     │               │              │             └─ Fragment 순서 번호
+     │               │              └─ 전송 시각 (ms)
+     │               └─ 우선순위 (0=HIGH, 1=NORMAL, 2=LOW)
+     └─ 상위 1비트: 암호화 플래그, 하위 7비트: 메시지 타입
 ```
 
 ## 🧪 테스트
@@ -43,14 +41,28 @@ mvn test
 # Tests: 25, Failures: 0 ✅
 ```
 
-| 테스트 클래스 | 수 | 내용 |
-|--------------|---|------|
+| 테스트 클래스 | 테스트 수 | 내용 |
+|--------------|----------|------|
 | NewFeaturesTest | 14 | 암호화, 우선순위, 타임스탬프 |
-| ChatAppLayerTest | 5 | 채팅 기능 |
-| FileAppLayerTest | 3 | 파일 전송 |
-| IPLayerDemuxTest | 3 | IP 역다중화 |
+| ChatAppLayerTest | 5 | 채팅 메시지 송수신 |
+| FileAppLayerTest | 3 | 파일 전송 기능 |
+| IPLayerDemuxTest | 3 | IP 프로토콜 역다중화 |
 
-## 🐳 Docker
+## 📁 프로젝트 구조
+```
+src/main/java/com/demo/
+├── ARPChatApp.java      # 메인 GUI 애플리케이션 (Swing)
+├── ChatAppLayer.java    # 채팅 응용 계층 (L7) - 암호화, 우선순위, 타임스탬프
+├── FileAppLayer.java    # 파일 전송 응용 계층 (L7)
+├── IPLayer.java         # IP 계층 (L3) - TOS 우선순위
+├── ARPLayer.java        # ARP 계층 (L2) - IP→MAC 주소 변환
+├── EthernetLayer.java   # 이더넷 계층 (L2) - 프레임 생성/파싱
+├── PhysicalLayer.java   # 물리 계층 (L1) - jNetPcap 연동
+├── BaseLayer.java       # 계층 인터페이스
+└── DemoApp.java         # Docker 데모용
+```
+
+## 🐳 Docker 실행 모드
 ```bash
 # 데모 실행 (기본)
 docker run --rm network-chat:latest
@@ -62,15 +74,17 @@ docker run --rm -e APP_MODE=test network-chat:latest
 docker run --rm -it -e APP_MODE=interactive network-chat:latest
 ```
 
-## 📁 핵심 파일
-| 파일 | 변경 내용 |
-|------|----------|
-| `ChatAppLayer.java` | 암호화, 타임스탬프, Priority 헤더 |
-| `IPLayer.java` | TOS 기반 우선순위 |
-| `ARPChatApp.java` | GUI (체크박스, 콤보박스, 지연시간) |
-| `DemoApp.java` | Docker 데모용 |
-
 ## ⚠️ 요구사항
-- Java 21+
-- 관리자 권한 (sudo) 또는 Docker
-- libpcap (로컬 실행 시)
+- **Java 21+** (--enable-preview 필요)
+- **관리자 권한** (sudo) 또는 Docker
+- **libpcap** (로컬 실행 시)
+- **jNetPcap 2.3.1** (lib 폴더에 포함)
+
+---
+
+## 📖 문서 목록
+
+| 문서 | 설명 |
+|------|------|
+| [DOCUMENTATION.md](./DOCUMENTATION.md) | 📚 **프로그램 상세 문서** - OSI 계층 구조, 패킷 분석, 알고리즘, 데이터 흐름 등 |
+| [WINDOWS_GUIDE.md](./WINDOWS_GUIDE.md) | 🪟 **Windows 실행 가이드** - Docker, WSL2, 네이티브 실행 방법 |
