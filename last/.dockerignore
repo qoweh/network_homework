@@ -1,0 +1,36 @@
+# Docker build artifacts
+target/
+*.jar
+!lib/*.jar
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+*.code-workspace
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Received files (runtime generated)
+received_files/
+
+# Test output
+surefire-reports/
+test-output/
+
+# Git
+.git/
+.gitignore
+
+# Documentation (not needed in container)
+*.md
+!README.md
+
+# Build files
+java-upgrade/
