@@ -45,13 +45,14 @@ if [ -d "$MAVEN_DIR" ]; then
 else
     echo "[*] Installing Maven ${MAVEN_VERSION}..."
     cd /tmp
-    wget https://archive.apache.org/dist/maven/maven-3/$\{MAVEN_VERSION\}/binaries/apache-maven-$\{MAVEN_VERSION\}-bin.tar.gz
-    tar -xzf apache-maven-${MAVEN_VERSION}-bin.tar.gz
-    mv apache-maven-${MAVEN_VERSION} /opt/
-    rm apache-maven-${MAVEN_VERSION}-bin.tar.gz
+    # Fixed URL variable expansion
+    wget "https://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.tar.gz"
+    tar -xzf "apache-maven-${MAVEN_VERSION}-bin.tar.gz"
+    mv "apache-maven-${MAVEN_VERSION}" /opt/
+    rm "apache-maven-${MAVEN_VERSION}-bin.tar.gz"
     
     # Create symlink if it doesn't exist or force update
-    ln -sf ${MAVEN_DIR}/bin/mvn /usr/bin/mvn
+    ln -sf "${MAVEN_DIR}/bin/mvn" /usr/bin/mvn
     echo "[*] Maven installed to ${MAVEN_DIR}"
 fi
 
@@ -64,7 +65,7 @@ echo "Java Version:"
 java -version
 echo ""
 echo "Maven Version:"
-/opt/apache-maven-3.9.9/bin/mvn -version
+mvn -version
 echo ""
 echo "Libpcap Status:"
 dpkg -l | grep libpcap
