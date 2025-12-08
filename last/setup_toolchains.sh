@@ -1,4 +1,4 @@
-#!/bin/bash
+.#!/bin/bash
 
 # Kali Linux Setup Script for Network Homework Project
 # Installs Java 21, Maven 3.9.9, and libpcap dependencies

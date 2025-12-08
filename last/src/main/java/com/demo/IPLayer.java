@@ -265,7 +265,8 @@ public class IPLayer implements BaseLayer {
         // Protocol (1바이트) - ChatApp(253) 또는 FileApp(254)
         buffer.put((byte) currentProtocol);
         
-        // Header Checksum (2바이트) - 간단한 구현으로 0 사용
+        // Header Checksum (2바이트) - 나중에 계산
+        int checksumPosition = buffer.position();
         buffer.putShort((short) 0);
         
         // Source IP Address (4바이트)
@@ -273,6 +274,10 @@ public class IPLayer implements BaseLayer {
         
         // Destination IP Address (4바이트)
         buffer.put(destinationIpAddress);
+        
+        // ===== IP 헤더 체크섬 계산 =====
+        int checksum = calculateIpChecksum(ipPacket, 0, 20);
+        buffer.putShort(checksumPosition, (short) checksum);
         
         // ===== 페이로드 복사 =====
         buffer.put(input, 0, length);
@@ -408,6 +413,39 @@ public class IPLayer implements BaseLayer {
         }
         return String.format("%d.%d.%d.%d",
             ip[0] & 0xFF, ip[1] & 0xFF, ip[2] & 0xFF, ip[3] & 0xFF);
+    }
+    
+    /**
+     * IP 헤더 체크섬 계산 (RFC 791)
+     * 
+     * 알고리즘:
+     * 1. 체크섬 필드를 0으로 설정
+     * 2. 헤더를 16비트 단위로 나누어 모두 더함
+     * 3. 오버플로우된 값을 하위 16비트에 더함 (carry wrap)
+     * 4. 1의 보수(complement)를 취함
+     * 
+     * @param data IP 헤더를 포함한 바이트 배열
+     * @param offset 헤더 시작 위치
+     * @param length 헤더 길이 (바이트 단위, 보통 20)
+     * @return 계산된 체크섬 (16비트)
+     */
+    private int calculateIpChecksum(byte[] data, int offset, int length) {
+        long sum = 0;
+        
+        // 16비트 단위로 더하기
+        for (int i = offset; i < offset + length; i += 2) {
+            int high = (data[i] & 0xFF) << 8;
+            int low = (i + 1 < data.length) ? (data[i + 1] & 0xFF) : 0;
+            sum += (high | low);
+        }
+        
+        // Carry를 하위 16비트에 더함 (32비트 → 16비트로 축소)
+        while ((sum >> 16) != 0) {
+            sum = (sum & 0xFFFF) + (sum >> 16);
+        }
+        
+        // 1의 보수 반환
+        return (~sum) & 0xFFFF;
     }
     
     /**
