@@ -445,7 +445,7 @@ public class IPLayer implements BaseLayer {
         }
         
         // 1의 보수 반환
-        return (~sum) & 0xFFFF;
+        return (int) ((~sum) & 0xFFFF);
     }
     
     /**
