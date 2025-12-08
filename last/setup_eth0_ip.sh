@@ -50,13 +50,13 @@ is_link_local() {
 # IP 충돌 검사
 check_ip_conflict() {
     local test_ip=$1
-    echo -e "${BLUE}[INFO]${NC} IP 충돌 검사: $test_ip"
     
     if ! command -v arping &> /dev/null; then
-        echo -e "${YELLOW}[WARN]${NC} arping 미설치, 충돌 검사 생략"
-        return 0
+        echo -e "${YELLOW}[WARN]${NC} arping 미설치, 충돌 검사 생략 → 즉시 사용"
+        return 0  # 성공으로 간주
     fi
     
+    echo -e "${BLUE}[INFO]${NC} IP 충돌 검사: $test_ip"
     ip link set $INTERFACE up 2>/dev/null || true
     
     if arping -D -I $INTERFACE -c 2 -w 3 $test_ip >/dev/null 2>&1; then
@@ -99,21 +99,27 @@ if [[ -n "$1" ]]; then
     if [[ "$1" =~ ^169\.254\.[0-9]{1,3}$ ]]; then
         echo -e "${YELLOW}[AUTO]${NC} 부분 IP 감지: $1"
         
-        # 충돌 없는 IP 찾을 때까지 시도
-        for attempt in {1..5}; do
+        # arping 없으면 바로 랜덤 생성
+        if ! command -v arping &> /dev/null; then
             IP_ADDRESS=$(complete_partial_ip "$1")
-            echo -e "${BLUE}[INFO]${NC} 시도 $attempt/5 - 후보: $IP_ADDRESS"
-            
-            if check_ip_conflict "$IP_ADDRESS"; then
-                echo -e "${GREEN}[OK]${NC} 사용 가능한 IP 생성: $IP_ADDRESS"
-                break
-            fi
-            
-            if [[ $attempt -eq 5 ]]; then
-                echo -e "${RED}[ERROR]${NC} $1.X 범위에서 사용 가능한 IP를 찾지 못했습니다"
-                exit 1
-            fi
-        done
+            echo -e "${GREEN}[OK]${NC} IP 생성 (충돌 검사 생략): $IP_ADDRESS"
+        else
+            # 충돌 없는 IP 찾을 때까지 시도
+            for attempt in {1..5}; do
+                IP_ADDRESS=$(complete_partial_ip "$1")
+                echo -e "${BLUE}[INFO]${NC} 시도 $attempt/5 - 후보: $IP_ADDRESS"
+                
+                if check_ip_conflict "$IP_ADDRESS"; then
+                    echo -e "${GREEN}[OK]${NC} 사용 가능한 IP 생성: $IP_ADDRESS"
+                    break
+                fi
+                
+                if [[ $attempt -eq 5 ]]; then
+                    echo -e "${RED}[ERROR]${NC} $1.X 범위에서 사용 가능한 IP를 찾지 못했습니다"
+                    exit 1
+                fi
+            done
+        fi
     else
         # 완전한 IP 주소
         IP_ADDRESS="$1"
@@ -125,20 +131,26 @@ elif [[ -n "$KALI_IP" ]]; then
 else
     echo -e "${YELLOW}[AUTO]${NC} 자동 IP 생성 모드"
     
-    for attempt in {1..5}; do
-        echo -e "${BLUE}[INFO]${NC} 시도 $attempt/5"
+    # arping 없으면 바로 랜덤 생성
+    if ! command -v arping &> /dev/null; then
         IP_ADDRESS=$(generate_random_ip)
-        echo -e "${BLUE}[INFO]${NC} 후보: $IP_ADDRESS"
-        
-        if check_ip_conflict "$IP_ADDRESS"; then
-            break
-        fi
-        
-        if [[ $attempt -eq 5 ]]; then
-            echo -e "${RED}[ERROR]${NC} IP 찾기 실패"
-            exit 1
-        fi
-    done
+        echo -e "${GREEN}[OK]${NC} IP 생성 (충돌 검사 생략): $IP_ADDRESS"
+    else
+        for attempt in {1..5}; do
+            echo -e "${BLUE}[INFO]${NC} 시도 $attempt/5"
+            IP_ADDRESS=$(generate_random_ip)
+            echo -e "${BLUE}[INFO]${NC} 후보: $IP_ADDRESS"
+            
+            if check_ip_conflict "$IP_ADDRESS"; then
+                break
+            fi
+            
+            if [[ $attempt -eq 5 ]]; then
+                echo -e "${RED}[ERROR]${NC} IP 찾기 실패"
+                exit 1
+            fi
+        done
+    fi
 fi
 
 # Link-local 주소 권장
