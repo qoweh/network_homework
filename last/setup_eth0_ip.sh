@@ -19,8 +19,6 @@
 #   sudo ./setup_eth0_ip.sh                   # 완전 자동 생성
 #############################################################################
 
-set -e
-
 # 색상 정의
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -52,19 +50,23 @@ check_ip_conflict() {
     local test_ip=$1
     
     if ! command -v arping &> /dev/null; then
-        echo -e "${YELLOW}[WARN]${NC} arping 미설치, 충돌 검사 생략 → 즉시 사용"
+        echo -e "${YELLOW}[WARN]${NC} arping 미설치, 충돌 검사 생략"
         return 0  # 성공으로 간주
     fi
     
     echo -e "${BLUE}[INFO]${NC} IP 충돌 검사: $test_ip"
     ip link set $INTERFACE up 2>/dev/null || true
     
-    if arping -D -I $INTERFACE -c 2 -w 3 $test_ip >/dev/null 2>&1; then
+    # -D: Duplicate Address Detection (응답 없으면 사용 가능)
+    # -w 3: 3초 타임아웃
+    # -c 2: 2번 시도
+    if timeout 5 arping -D -I $INTERFACE -c 2 -w 3 "$test_ip" >/dev/null 2>&1; then
         echo -e "${GREEN}[OK]${NC} 사용 가능: $test_ip"
-        return 0
+        return 0  # 사용 가능
     else
-        echo -e "${RED}[ERROR]${NC} IP 충돌: $test_ip"
-        return 1
+        local exit_code=$?
+        echo -e "${RED}[ERROR]${NC} IP 충돌 또는 검사 실패 (종료 코드: $exit_code): $test_ip"
+        return 1  # 충돌 또는 실패
     fi
 }
 
@@ -81,8 +83,10 @@ complete_partial_ip() {
     
     # 169.254.38 형식인지 확인
     if [[ $partial =~ ^169\.254\.[0-9]{1,3}$ ]]; then
+        # 1~254 범위의 랜덤 값 (0과 255 제외)
         local fourth=$((RANDOM % 254 + 1))
-        echo "$partial.$fourth"
+        local result="$partial.$fourth"
+        echo "$result"
         return 0
     fi
     
@@ -170,11 +174,23 @@ echo -e "설정 IP:    ${BLUE}$IP_ADDRESS/16${NC}"
 echo -e "${GREEN}========================================${NC}"
 echo ""
 
+# IP 주소 유효성 재확인
+if [[ ! $IP_ADDRESS =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+    echo -e "${RED}[ERROR]${NC} 유효하지 않은 IP 주소: $IP_ADDRESS"
+    exit 1
+fi
+
 echo -e "${BLUE}[1/3]${NC} 기존 IP 제거..."
 ip addr flush dev $INTERFACE 2>/dev/null || true
 
 echo -e "${BLUE}[2/3]${NC} IP 설정: $IP_ADDRESS/16"
-ip addr add $IP_ADDRESS/16 dev $INTERFACE
+if ! ip addr add $IP_ADDRESS/16 dev $INTERFACE 2>/dev/null; then
+    echo -e "${RED}[ERROR]${NC} IP 설정 실패. 이미 설정된 IP인지 확인하세요."
+    # 기존 IP 확인
+    echo -e "${YELLOW}[INFO]${NC} 현재 설정:"
+    ip addr show $INTERFACE | grep -E "inet " || echo "  (IP 없음)"
+    exit 1
+fi
 
 echo -e "${BLUE}[3/3]${NC} 인터페이스 활성화..."
 ip link set $INTERFACE up
