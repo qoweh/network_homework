@@ -63,6 +63,10 @@ public class ChatAppLayer implements BaseLayer {
     // ===== 메시지 재조립 버퍼 =====
     private final Map<Integer, MessageReassemblyBuffer> reassemblyBuffers = new ConcurrentHashMap<>();
     
+    // ===== 중복 메시지 필터 =====
+    private final Set<Long> recentTimestamps = ConcurrentHashMap.newKeySet();
+    private static final long DEDUP_WINDOW_MS = 5000; // 5초 내 같은 타임스탬프는 중복으로 간주
+    
     // ===== 암호화 설정 =====
     private boolean encryptionEnabled = false;
     
@@ -448,6 +452,12 @@ public class ChatAppLayer implements BaseLayer {
                 
                 String message = new String(data, StandardCharsets.UTF_8);
                 
+                // 중복 메시지 필터링 (타임스탬프 기반)
+                if (isDuplicate(originalSentTimestamp)) {
+                    System.out.println("[ChatApp] 중복 메시지 감지 - 드롭 (timestamp=" + originalSentTimestamp + ")");
+                    return true; // 중복이지만 처리는 성공으로 간주
+                }
+                
                 // 우선순위 큐에 추가
                 priorityMessageQueue.offer(new PrioritizedMessage(message, priority, originalSentTimestamp));
                 
@@ -504,6 +514,27 @@ public class ChatAppLayer implements BaseLayer {
     }
     
     /**
+     * 중복 메시지 체크 (타임스탬프 기반)
+     * @param timestamp 메시지 타임스탬프
+     * @return 중복이면 true, 새 메시지면 false
+     */
+    private boolean isDuplicate(long timestamp) {
+        // 이미 처리한 타임스탬프인지 확인
+        if (recentTimestamps.contains(timestamp)) {
+            return true;
+        }
+        
+        // 새 타임스탬프 등록
+        recentTimestamps.add(timestamp);
+        
+        // 오래된 타임스탬프 정리 (메모리 누수 방지)
+        long cutoffTime = System.currentTimeMillis() - DEDUP_WINDOW_MS;
+        recentTimestamps.removeIf(ts -> ts < cutoffTime);
+        
+        return false;
+    }
+    
+    /**
      * Fragment 처리 및 재조립
      */
     private void processFragment(int sequenceNumber, int totalFragments, byte[] data, 
@@ -532,8 +563,13 @@ public class ChatAppLayer implements BaseLayer {
             System.out.println("[ChatApp] 메시지 재조립 완료: " + message.length() + "바이트" + 
                               (wasEncrypted ? " [복호화됨]" : ""));
             
-            // 우선순위 큐에 추가
-            priorityMessageQueue.offer(new PrioritizedMessage(message, buffer.messagePriority, buffer.originalSentTimestamp));
+            // 중복 메시지 필터링 (타임스탬프 기반)
+            if (!isDuplicate(buffer.originalSentTimestamp)) {
+                // 우선순위 큐에 추가
+                priorityMessageQueue.offer(new PrioritizedMessage(message, buffer.messagePriority, buffer.originalSentTimestamp));
+            } else {
+                System.out.println("[ChatApp] 중복 Fragment 메시지 감지 - 드롭 (timestamp=" + buffer.originalSentTimestamp + ")");
+            }
             
             // 버퍼 제거
             reassemblyBuffers.remove(messageId);

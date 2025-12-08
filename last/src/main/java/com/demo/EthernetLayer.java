@@ -201,8 +201,10 @@ public class EthernetLayer implements BaseLayer {
             }
         }
 
-        // 3. 자기 수신 방지: 내가 보낸 프레임은 드롭
+        // 3. 자기 수신 방지: 내가 보낸 프레임은 드롭 (출발지 MAC == 내 MAC)
         if (isSourceMe) {
+            // 디버깅: 자기 수신 감지
+            // System.out.println("[Ethernet] 자기 수신 방지 - 드롭 (출발지가 자신)");
             return false;
         }
         

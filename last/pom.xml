@@ -54,7 +54,6 @@
           <compilerArgs>
             <arg>--enable-preview</arg>
           </compilerArgs>
-          <forceJavacCompilerUse>true</forceJavacCompilerUse>
         </configuration>
       </plugin>
 
