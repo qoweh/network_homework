@@ -3,6 +3,8 @@ package com.demo;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * EthernetLayer - 이더넷 데이터링크 계층 (OSI 2계층에 해당)
@@ -15,6 +17,7 @@ import java.util.List;
  *   1. EtherType 필터 (IP: 0x0800, ARP: 0x0806 지원)
  *   2. 자기 수신 방지 (출발지 MAC이 자신과 같으면 드롭)
  *   3. 목적지 필터 (자신 또는 브로드캐스트 주소만 수락)
+ *   4. 프레임 레벨 중복 방지 (해시 기반)
  * 
  * Ethernet 프레임 구조 (IEEE 802.3):
  * ┌──────────────┬──────────────┬──────────┬─────────────┬──────┬─────┐
@@ -42,6 +45,12 @@ public class EthernetLayer implements BaseLayer {
     // ===== EtherType 상수 =====
     private static final int ETHER_TYPE_IPV4 = 0x0800;   // IPv4
     private static final int ETHER_TYPE_ARP = 0x0806;    // ARP
+    
+    // ===== 프레임 레벨 중복 방지 =====
+    private final Set<Integer> recentFrameHashes = ConcurrentHashMap.newKeySet();
+    private static final int MAX_RECENT_FRAMES = 1000;
+    private volatile long lastFrameCleanup = System.currentTimeMillis();
+    private static final long FRAME_DEDUP_WINDOW_MS = 2000; // 2초
 
     /**
      * 출발지 MAC 주소를 설정합니다.
@@ -172,7 +181,27 @@ public class EthernetLayer implements BaseLayer {
         final int HEADER_SIZE = 14;
         if (input.length < HEADER_SIZE) return false;
         
-        // 2. MAC 주소 분석
+        // 2. 프레임 레벨 중복 체크 (해시 기반)
+        int frameHash = Arrays.hashCode(input);
+        if (recentFrameHashes.contains(frameHash)) {
+            System.out.println("[Ethernet] 중복 프레임 감지 - 드롭 (hash=" + frameHash + ", length=" + input.length + ")");
+            return false; // 중복 프레임 드롭
+        }
+        
+        // 새 프레임 해시 등록
+        recentFrameHashes.add(frameHash);
+        
+        // 주기적으로 오래된 해시 정리
+        long now = System.currentTimeMillis();
+        if (now - lastFrameCleanup > FRAME_DEDUP_WINDOW_MS) {
+            lastFrameCleanup = now;
+            if (recentFrameHashes.size() > MAX_RECENT_FRAMES) {
+                recentFrameHashes.clear();
+                System.out.println("[Ethernet] 프레임 해시 캐시 정리");
+            }
+        }
+        
+        // 3. MAC 주소 분석
         
         // 브로드캐스트 체크 (목적지가 FF:FF:FF:FF:FF:FF인지)
         boolean isBroadcastFrame = true;

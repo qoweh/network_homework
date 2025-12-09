@@ -259,7 +259,7 @@ public class NetworkChatApp {
         panel.add(myIpLabel, gbc);
         
         gbc.gridx = 1; gbc.gridy = 2;
-        myIpField = new JTextField("192.168.64.", 15);
+        myIpField = new JTextField("169.254.", 15);
         myIpField.setBackground(Color.WHITE);
         myIpField.setForeground(Color.BLACK);
         panel.add(myIpField, gbc);
@@ -271,7 +271,7 @@ public class NetworkChatApp {
         panel.add(dstIpLabel, gbc);
         
         gbc.gridx = 1; gbc.gridy = 3;
-        dstIpField = new JTextField("192.168.64.", 15);
+        dstIpField = new JTextField("169.254", 15);
         dstIpField.setBackground(Color.WHITE);
         dstIpField.setForeground(Color.BLACK);
         panel.add(dstIpField, gbc);

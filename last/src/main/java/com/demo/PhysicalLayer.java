@@ -212,6 +212,17 @@ public class PhysicalLayer implements BaseLayer, Runnable {
             // 방어적 복사: native 버퍼가 재사용될 수 있으므로 복사 필요
             byte[] data = java.util.Arrays.copyOf(pkt, pkt.length);
             
+            // 디버깅: 패킷 수신 로그 (MAC 주소와 길이)
+            if (data.length >= 14) {
+                String srcMac = String.format("%02X:%02X:%02X:%02X:%02X:%02X",
+                    data[6] & 0xFF, data[7] & 0xFF, data[8] & 0xFF,
+                    data[9] & 0xFF, data[10] & 0xFF, data[11] & 0xFF);
+                String dstMac = String.format("%02X:%02X:%02X:%02X:%02X:%02X",
+                    data[0] & 0xFF, data[1] & 0xFF, data[2] & 0xFF,
+                    data[3] & 0xFF, data[4] & 0xFF, data[5] & 0xFF);
+                System.out.println("[Physical] 프레임 수신: " + srcMac + " -> " + dstMac + " (" + data.length + " bytes)");
+            }
+            
             // 상위 계층(Ethernet)으로 전달
             // EthernetLayer에서 EtherType/MAC 필터링 수행
             for (BaseLayer upper : uppers) {
