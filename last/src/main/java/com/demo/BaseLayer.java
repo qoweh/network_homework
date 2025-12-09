@@ -1,7 +1,5 @@
 package com.demo;
 
-import java.util.ArrayList;
-
 /**
  * BaseLayer - 계층 간 통신을 위한 기본 인터페이스
  * 
@@ -19,11 +17,6 @@ import java.util.ArrayList;
  *   수신: 네트워크 --> Physical --Receive--> Ethernet --Receive--> ChatApp
  */
 public interface BaseLayer {
-	// ===== 인터페이스 필드 (사용되지 않음, 각 구현체에서 선언) =====
-	// 인터페이스의 필드는 자동으로 public static final이므로 실제로는 사용되지 않음
-	public final String LAYER_NAME_PLACEHOLDER = null;
-	public final BaseLayer LOWER_LAYER_PLACEHOLDER = null;
-	public final ArrayList<BaseLayer> UPPER_LAYERS_PLACEHOLDER = new ArrayList<BaseLayer>();
 
 	/**
 	 * 계층의 이름을 반환합니다.

@@ -273,13 +273,13 @@ mvn test
 # 관리자 권한으로 PowerShell 실행 필요!
 
 # 방법 1: Maven으로 실행
-mvn exec:java -Dexec.mainClass="com.demo.ARPChatApp"
+mvn exec:java -Dexec.mainClass="com.demo.NetworkChatApp"
 
 # 방법 2: 직접 실행
 java --enable-preview --enable-native-access=ALL-UNNAMED ^
      -Djava.library.path=lib\native ^
      -cp "target\classes;lib\jnetpcap-wrapper-2.3.1-jdk21.jar" ^
-     com.demo.ARPChatApp
+     com.demo.NetworkChatApp
 ```
 
 ### 4.8 Windows 방화벽 설정

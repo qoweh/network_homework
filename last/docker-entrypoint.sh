@@ -15,7 +15,7 @@ case "${APP_MODE}" in
     "demo")
         echo "[MODE] Demo - Running feature demonstration..."
         echo ""
-        java ${JAVA_OPTS} -cp "app.jar:lib/*" com.demo.ARPChatApp --demo 2>/dev/null || \
+        java ${JAVA_OPTS} -cp "app.jar:lib/*" com.demo.NetworkChatApp --demo 2>/dev/null || \
         java ${JAVA_OPTS} -jar app.jar --demo
         ;;
     "test")

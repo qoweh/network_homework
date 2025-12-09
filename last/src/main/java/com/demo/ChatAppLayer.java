@@ -64,8 +64,10 @@ public class ChatAppLayer implements BaseLayer {
     private final Map<Integer, MessageReassemblyBuffer> reassemblyBuffers = new ConcurrentHashMap<>();
     
     // ===== 중복 메시지 필터 =====
-    private final Set<Long> recentTimestamps = ConcurrentHashMap.newKeySet();
-    private static final long DEDUP_WINDOW_MS = 5000; // 5초 내 같은 타임스탬프는 중복으로 간주
+    // 타임스탬프와 메시지 해시를 결합하여 중복 체크 (같은 시간에 다른 메시지는 허용)
+    private final Set<String> recentMessageIds = ConcurrentHashMap.newKeySet();
+    private static final long DEDUP_WINDOW_MS = 5000; // 5초 내 같은 메시지 ID는 중복으로 간주
+    private volatile long lastCleanupTime = System.currentTimeMillis();
     
     // ===== 암호화 설정 =====
     private boolean encryptionEnabled = false;
@@ -452,8 +454,8 @@ public class ChatAppLayer implements BaseLayer {
                 
                 String message = new String(data, StandardCharsets.UTF_8);
                 
-                // 중복 메시지 필터링 (타임스탬프 기반)
-                if (isDuplicate(originalSentTimestamp)) {
+                // 중복 메시지 필터링 (타임스탬프 + 내용 해시 기반)
+                if (isDuplicate(originalSentTimestamp, message.hashCode())) {
                     System.out.println("[ChatApp] 중복 메시지 감지 - 드롭 (timestamp=" + originalSentTimestamp + ")");
                     return true; // 중복이지만 처리는 성공으로 간주
                 }
@@ -514,22 +516,32 @@ public class ChatAppLayer implements BaseLayer {
     }
     
     /**
-     * 중복 메시지 체크 (타임스탬프 기반)
+     * 중복 메시지 체크 (타임스탬프 + 메시지 해시 기반)
+     * 같은 타임스탬프라도 다른 내용의 메시지는 허용
      * @param timestamp 메시지 타임스탬프
+     * @param messageHash 메시지 내용의 해시 코드
      * @return 중복이면 true, 새 메시지면 false
      */
-    private boolean isDuplicate(long timestamp) {
-        // 이미 처리한 타임스탬프인지 확인
-        if (recentTimestamps.contains(timestamp)) {
+    private boolean isDuplicate(long timestamp, int messageHash) {
+        String messageId = timestamp + ":" + messageHash;
+        
+        // 이미 처리한 메시지인지 확인
+        if (recentMessageIds.contains(messageId)) {
             return true;
         }
         
-        // 새 타임스탬프 등록
-        recentTimestamps.add(timestamp);
+        // 새 메시지 ID 등록
+        recentMessageIds.add(messageId);
         
-        // 오래된 타임스탬프 정리 (메모리 누수 방지)
-        long cutoffTime = System.currentTimeMillis() - DEDUP_WINDOW_MS;
-        recentTimestamps.removeIf(ts -> ts < cutoffTime);
+        // 주기적으로 오래된 항목 정리 (매 정리 주기마다)
+        long now = System.currentTimeMillis();
+        if (now - lastCleanupTime > DEDUP_WINDOW_MS) {
+            lastCleanupTime = now;
+            // 현재 크기가 너무 크면 전체 초기화 (단순한 구현)
+            if (recentMessageIds.size() > 1000) {
+                recentMessageIds.clear();
+            }
+        }
         
         return false;
     }
@@ -563,8 +575,8 @@ public class ChatAppLayer implements BaseLayer {
             System.out.println("[ChatApp] 메시지 재조립 완료: " + message.length() + "바이트" + 
                               (wasEncrypted ? " [복호화됨]" : ""));
             
-            // 중복 메시지 필터링 (타임스탬프 기반)
-            if (!isDuplicate(buffer.originalSentTimestamp)) {
+            // 중복 메시지 필터링 (타임스탬프 + 내용 해시 기반)
+            if (!isDuplicate(buffer.originalSentTimestamp, message.hashCode())) {
                 // 우선순위 큐에 추가
                 priorityMessageQueue.offer(new PrioritizedMessage(message, buffer.messagePriority, buffer.originalSentTimestamp));
             } else {

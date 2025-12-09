@@ -17,7 +17,7 @@ import org.jnetpcap.PcapException;
 import org.jnetpcap.PcapIf;
 
 /**
- * ARPChatApp - ARP 기능이 추가된 패킷 기반 채팅 애플리케이션
+ * NetworkChatApp - 네트워크 프로토콜 스택 기반 채팅 애플리케이션
  * 
  * 프로그램 전체 구조:
  * 
@@ -63,7 +63,7 @@ import org.jnetpcap.PcapIf;
  * 4. Proxy ARP 기능
  * 5. IP 기반 메시지 송수신
  */
-public class ARPChatApp {
+public class NetworkChatApp {
     // ============= UI Components =============
     private static JTextArea textArea;
     private static JTextField myIpField;
@@ -136,13 +136,13 @@ public class ARPChatApp {
             return;
         }
         
-        SwingUtilities.invokeLater(ARPChatApp::createAndShowGUI);
+        SwingUtilities.invokeLater(NetworkChatApp::createAndShowGUI);
     }
     
     private static void printBanner() {
         System.out.println();
         System.out.println("╔═══════════════════════════════════════════════════════════════════════════════╗");
-        System.out.println("║              ARP 기능이 추가된 패킷 채팅 프로그램 (ARP Chat v2.0)             ║");
+        System.out.println("║              네트워크 프로토콜 스택 채팅 프로그램 (Network Chat v2.0)         ║");
         System.out.println("║                                                                               ║");
         System.out.println("║  • 계층 구조: ChatApp → IP → Ethernet/ARP → Physical                          ║");
         System.out.println("║  • ARP 기능: Request, Reply, Gratuitous ARP, Proxy ARP                       ║");
@@ -526,8 +526,8 @@ public class ARPChatApp {
         String[] names = new String[allDevices.size()];
         for (int i = 0; i < allDevices.size(); i++) {
             PcapIf device = allDevices.get(i);
-            names[i] = device.name() + " - " + 
-                      (device.description() != null ? device.description() : "설명 없음");
+            names[i] = device.name() + " - " + "설명 없음";
+//                      (device.description() != null ? device.description() : "설명 없음");
         }
         return names;
     }

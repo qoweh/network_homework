@@ -71,7 +71,7 @@
         <artifactId>exec-maven-plugin</artifactId>
         <version>3.1.0</version>
         <configuration>
-          <mainClass>com.demo.ARPChatApp</mainClass>
+          <mainClass>com.demo.NetworkChatApp</mainClass>
           <additionalClasspathElements>
             <additionalClasspathElement>${project.basedir}/lib/jnetpcap-wrapper-2.3.1-jdk21.jar</additionalClasspathElement>
           </additionalClasspathElements>
@@ -97,7 +97,7 @@
                 <argument>-Djava.awt.headless=false</argument>
                 <argument>-cp</argument>
                 <argument>${project.build.outputDirectory}:${project.basedir}/lib/jnetpcap-wrapper-2.3.1-jdk21.jar</argument>
-                <argument>com.demo.ARPChatApp</argument>
+                <argument>com.demo.NetworkChatApp</argument>
               </arguments>
             </configuration>
           </execution>
@@ -112,7 +112,7 @@
         <configuration>
           <archive>
             <manifest>
-              <mainClass>com.demo.DemoApp</mainClass>
+              <mainClass>com.demo.NetworkChatApp</mainClass>
               <addClasspath>true</addClasspath>
               <classpathPrefix>lib/</classpathPrefix>
             </manifest>
