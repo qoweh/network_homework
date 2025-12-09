@@ -120,7 +120,7 @@ public class ChatAppLayer implements BaseLayer {
     
     // ===== 데모 모드 (우선순위 시연용) =====
     private volatile boolean demoMode = false;
-    private static final long DEMO_MESSAGE_DELAY_MS = 1500; // 각 메시지 처리 간격 (1.5초)
+    private static final long DEMO_MESSAGE_DELAY_MS = 800; // 각 메시지 처리 간격 (0.8초)
     
     // ===== 로깅 설정 =====
     private static final String LOG_FILE_PATH = "packet.log";
@@ -279,8 +279,12 @@ public class ChatAppLayer implements BaseLayer {
                     
                     // 데모 모드: 우선순위 시연을 위해 각 메시지 처리에 지연 추가
                     if (demoMode) {
-                        System.out.println(String.format("[ChatApp:DEMO] 우선순위 큐에서 꺼냄: %s %s (큐 대기: %d개)", 
-                            msg.priority.label, msg.content, priorityMessageQueue.size()));
+                        System.out.println("\n" + "=".repeat(70));
+                        System.out.println(String.format("🎬 [데모] 우선순위 큐에서 꺼냄: %s \"%s\"", 
+                            msg.priority.label, msg.content));
+                        System.out.println(String.format("    큐에 남은 메시지: %d개", priorityMessageQueue.size()));
+                        System.out.println(String.format("    다음 메시지까지 %dms 대기...", DEMO_MESSAGE_DELAY_MS));
+                        System.out.println("=".repeat(70) + "\n");
                         Thread.sleep(DEMO_MESSAGE_DELAY_MS);
                     }
                     
@@ -494,7 +498,7 @@ public class ChatAppLayer implements BaseLayer {
                 
                 // 데모 모드: 큐 상태 출력
                 if (demoMode) {
-                    System.out.println(String.format("[ChatApp:DEMO] 우선순위 큐에 추가: %s %s (큐 크기: %d)", 
+                    System.out.println(String.format("📥 [데모] 메시지 도착 → 우선순위 큐에 추가: %s \"%s\" (큐 크기: %d)", 
                         priority.label, message, priorityMessageQueue.size()));
                 }
                 
