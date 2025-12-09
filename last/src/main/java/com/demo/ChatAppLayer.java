@@ -354,6 +354,11 @@ public class ChatAppLayer implements BaseLayer {
         byte[] messageBytes = text.getBytes(StandardCharsets.UTF_8);
         long sentTimestamp = System.currentTimeMillis();
         
+        // IPLayer에 현재 우선순위 설정 (TOS 필드에 반영)
+        if (lowerLayer instanceof IPLayer ipLayer) {
+            ipLayer.setPriority(currentPriority);
+        }
+        
         // 암호화 처리
         byte[] dataToSend = messageBytes;
         if (encryptionEnabled) {
