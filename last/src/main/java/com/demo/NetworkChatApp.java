@@ -374,6 +374,19 @@ public class NetworkChatApp {
         });
         optionsPanel.add(encryptCheckbox);
         
+        // 데모 모드 체크박스 (우선순위 시연용)
+        JCheckBox demoModeCheckbox = new JCheckBox("🎬 데모모드");
+        demoModeCheckbox.setBackground(Color.WHITE);
+        demoModeCheckbox.setForeground(new Color(255, 87, 34)); // 주황색
+        demoModeCheckbox.setToolTipText("우선순위 시연을 위해 메시지 처리에 1.5초 지연 추가");
+        demoModeCheckbox.addActionListener(e -> {
+            if (chatLayer != null) {
+                chatLayer.setDemoMode(demoModeCheckbox.isSelected());
+                logToUI("[설정] 데모 모드 " + (demoModeCheckbox.isSelected() ? "활성화 (처리 지연: 1.5초)" : "비활성화"));
+            }
+        });
+        optionsPanel.add(demoModeCheckbox);
+        
         // 우선순위 콤보박스
         optionsPanel.add(new JLabel("우선순위:"));
         priorityComboBox = new JComboBox<>(new String[]{"일반", "긴급", "낮음"});

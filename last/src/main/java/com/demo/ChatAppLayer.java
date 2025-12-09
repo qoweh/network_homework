@@ -118,6 +118,10 @@ public class ChatAppLayer implements BaseLayer {
     private Thread messageProcessorThread;
     private volatile boolean isProcessorRunning = true;
     
+    // ===== 데모 모드 (우선순위 시연용) =====
+    private volatile boolean demoMode = false;
+    private static final long DEMO_MESSAGE_DELAY_MS = 1500; // 각 메시지 처리 간격 (1.5초)
+    
     // ===== 로깅 설정 =====
     private static final String LOG_FILE_PATH = "packet.log";
     private static PrintWriter logFileWriter;
@@ -232,6 +236,24 @@ public class ChatAppLayer implements BaseLayer {
     }
     
     /**
+     * 데모 모드 설정 (우선순위 시연용)
+     * 데모 모드 활성화 시 각 메시지 처리에 1.5초 지연 추가
+     */
+    public void setDemoMode(boolean enabled) {
+        this.demoMode = enabled;
+        String status = enabled ? "활성화 (메시지 처리 지연: " + DEMO_MESSAGE_DELAY_MS + "ms)" : "비활성화";
+        log("SYSTEM", "데모 모드 " + status);
+        System.out.println("[ChatApp] 데모 모드 " + status);
+    }
+    
+    /**
+     * 데모 모드 상태 확인
+     */
+    public boolean isDemoMode() {
+        return demoMode;
+    }
+    
+    /**
      * 현재 우선순위 반환
      */
     public Priority getPriority() {
@@ -254,6 +276,13 @@ public class ChatAppLayer implements BaseLayer {
                     
                     log("RECV", String.format("%s (sent=%d, received=%d, latency=%dms)", 
                         msg.content, msg.sentAt, receivedAt, networkLatency));
+                    
+                    // 데모 모드: 우선순위 시연을 위해 각 메시지 처리에 지연 추가
+                    if (demoMode) {
+                        System.out.println(String.format("[ChatApp:DEMO] 우선순위 큐에서 꺼냄: %s %s (큐 대기: %d개)", 
+                            msg.priority.label, msg.content, priorityMessageQueue.size()));
+                        Thread.sleep(DEMO_MESSAGE_DELAY_MS);
+                    }
                     
                     if (messageReceivedWithLatencyCallback != null) {
                         messageReceivedWithLatencyCallback.accept(formattedMessage, networkLatency);
@@ -462,6 +491,12 @@ public class ChatAppLayer implements BaseLayer {
                 
                 // 우선순위 큐에 추가
                 priorityMessageQueue.offer(new PrioritizedMessage(message, priority, originalSentTimestamp));
+                
+                // 데모 모드: 큐 상태 출력
+                if (demoMode) {
+                    System.out.println(String.format("[ChatApp:DEMO] 우선순위 큐에 추가: %s %s (큐 크기: %d)", 
+                        priority.label, message, priorityMessageQueue.size()));
+                }
                 
                 break;
                 
