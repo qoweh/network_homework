@@ -6,10 +6,8 @@
 
 ### 1.1 프로젝트 소개
 - **목표**: jNetPcap 라이브러리를 활용하여 **L1(Physical)부터 L7(Application)까지의 네트워크 스택을 직접 구현**한 채팅 및 파일 전송 프로그램
-- **특징**: TCP/UDP 없이 **Raw Ethernet/IP 패킷**을 직접 생성하여 통신
 
 ![UI Screenshot](UI.png)
-<center><i>[그림 1] 프로그램 실행 화면</i></center>
 
 ### 1.2 전체 아키텍처 (다중화 구조)
 이 시스템의 핵심은 **"하나의 회선(IP)을 두 개의 앱(채팅, 파일)이 공유"**하는 것입니다.
@@ -18,7 +16,7 @@
 [사용자 영역]
       │
       ├── (1) 채팅 (ChatAppLayer) ──┐
-      │                             │ 다중화 (Multiplexing)
+      │                            │ 다중화 (Multiplexing)
       └── (2) 파일 (FileAppLayer) ──┴─→ [IP Layer]
                                             │
                                         [Ethernet Layer]
@@ -36,7 +34,7 @@
 OSI 7계층 모델을 기반으로 구현된 각 클래스의 역할과 패킷 구조입니다.
 
 ![Class Diagram](diagram.png)
-<center><i>[그림 2] 클래스 다이어그램</i></center>
+
 
 ### 2.1 계층별 역할 요약
 
@@ -117,12 +115,12 @@ OSI 7계층 모델을 기반으로 구현된 각 클래스의 역할과 패킷 �
 AA:AA:AA:AA:AA:AA                            BB:BB:BB:BB:BB:BB
 
    │                                              │
-   │  ARP Request (브로드캐스트)                   │
-   │  "192.168.0.20의 MAC 주소는?"                 │
+   │  ARP Request (브로드캐스트)                     │
+   │  "192.168.0.20의 MAC 주소는?"                  │
    │ ─────────────────────────────────────────→   │
    │                                              │
-   │  ARP Reply (유니캐스트)                       │
-   │  "192.168.0.20은 BB:BB:BB:BB:BB:BB"         │
+   │  ARP Reply (유니캐스트)                         │
+   │  "192.168.0.20은 BB:BB:BB:BB:BB:BB"           │
    │ ←─────────────────────────────────────────   │
    │                                              │
 ```
