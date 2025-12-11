@@ -137,7 +137,7 @@ public class EthernetLayer implements BaseLayer {
         frame[12] = (byte) ((etherType >> 8) & 0xFF);  // 상위 바이트
         frame[13] = (byte) (etherType & 0xFF);         // 하위 바이트
         
-        // 페이로드 복사
+        // 페이로드 복사 // ex) System.arraycopy(src, srcPos, dest, destPos, length);
         System.arraycopy(input, 0, frame, 14, length);
         
         // 나머지는 자동으로 0x00으로 초기화되어 패딩 역할

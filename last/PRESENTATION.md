@@ -5,12 +5,16 @@
 ## 1️⃣ 프로젝트 개요 및 아키텍처
 
 ### 1.1 프로젝트 소개
-- **목표**: jNetPcap 라이브러리를 활용하여 **L1(Physical)부터 L7(Application)까지의 네트워크 스택을 직접 구현**한 채팅 및 파일 전송 프로그램
+- **목표**: jNetPcap 라이브러리를 활용하여 **L1(Physical)부터 L7(Application)까지의 네트워크 스택을 직접 구현**
+- **핵심 구현 사항**:
+  - **네트워크 프로토콜**: ARP(주소 결정), IP(라우팅), Ethernet(프레임 처리) 직접 구현
+  - **고급 기능**: 메시지 단편화(Fragmentation), XOR 암호화, 우선순위 큐(Priority Queue) 적용
 
 ![UI Screenshot](UI.png)
 
 ### 1.2 전체 아키텍처 (다중화 구조)
-이 시스템의 핵심은 **"하나의 회선(IP)을 두 개의 앱(채팅, 파일)이 공유"**하는 것입니다.
+이 시스템의 핵심은 **"다중화(Multiplexing)와 역다중화(Demultiplexing)"**를 통해 하나의 물리적 회선을 효율적으로 공유하는 것입니다.
+
 
 ```mermaid
 graph TD
@@ -221,5 +225,3 @@ AA:AA:AA:AA:AA:AA                            BB:BB:BB:BB:BB:BB
   - [run()](https://github.com/qoweh/network_homework/blob/main/last/src/main/java/com/demo/PhysicalLayer.java#L200-L244) - 백그라운드 수신 루프 (pcap.dispatch)
 
 ---
-
-## 7️⃣ 예상 질문 및 답변 (Q&A)
