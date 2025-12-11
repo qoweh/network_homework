@@ -13,15 +13,14 @@
 이 시스템의 핵심은 **"하나의 회선(IP)을 두 개의 앱(채팅, 파일)이 공유"**하는 것입니다.
 
 ```mermaid
-[사용자 영역]
-      │
-      ├── (1) 채팅 (ChatAppLayer) ──┐
-      │                            │ 다중화 (Multiplexing)
-      └── (2) 파일 (FileAppLayer) ──┴─→ [IP Layer]
-                                            │
-                                        [Ethernet Layer]
-                                            │
-                                        [Physical Layer] ──→ Network
+graph TD
+    User[사용자 영역] --> Chat["(1) 채팅 (ChatAppLayer)"]
+    User --> File["(2) 파일 (FileAppLayer)"]
+    Chat -- "다중화 (Multiplexing)" --> IP[IP Layer]
+    File --> IP
+    IP --> Eth[Ethernet Layer]
+    Eth --> Phy[Physical Layer]
+    Phy --> Network
 ```
 
 - **송신 시**: Chat과 File이 하나의 IP 계층으로 합쳐짐
