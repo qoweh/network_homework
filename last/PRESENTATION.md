@@ -57,7 +57,22 @@ OSI 7계층 모델을 기반으로 구현된 각 클래스의 역할과 패킷 �
 └────────┴──────────┴───────────┴──────────┴──────────┴──────────┘
 ```
 
-**② IPLayer 헤더 (20바이트)**
+**② FileAppLayer 헤더 (가변)**
+- **Type**: 0(Start), 1(Data), 2(End)
+```
+[FILE_START]
+┌────────┬──────────┬──────────┬──────────┬──────────┐
+│ Type   │ TotalLen │ FileName │ FragCnt  │  Data    │
+│ 1byte  │  4bytes  │ (가변)    │  4bytes  │ (없음)    │
+└────────┴──────────┴──────────┴──────────┴──────────┘
+[FILE_DATA]
+┌────────┬──────────┬──────────┐
+│ Type   │ SeqNum   │  Data    │
+│ 1byte  │  4bytes  │ (1KB)    │
+└────────┴──────────┴──────────┘
+```
+
+**③ IPLayer 헤더 (20바이트)**
 - **TOS**: 우선순위(Precedence) / **Protocol**: 상위 계층 구분(253/254)
 ```
 ┌────────┬────────┬────────┬──────────────┐
@@ -73,7 +88,16 @@ OSI 7계층 모델을 기반으로 구현된 각 클래스의 역할과 패킷 �
 └─────────────────────────────────────────┘
 ```
 
-**③ EthernetLayer 프레임 (14바이트 + Payload)**
+**④ ARPLayer 패킷 (28바이트)**
+- **Opcode**: 1(Request), 2(Reply)
+```
+┌──────────┬──────────┬──────────┬──────────┬──────────┬──────────┬──────────┬──────────┐
+│ HW Type  │ ProtoType│ HW Len   │ ProtoLen │ Opcode   │ SenderMAC│ SenderIP │ Target...│
+│ 2bytes   │ 2bytes   │ 1byte    │ 1byte    │ 2bytes   │ 6bytes   │ 4bytes   │ ...      │
+└──────────┴──────────┴──────────┴──────────┴──────────┴──────────┴──────────┴──────────┘
+```
+
+**⑤ EthernetLayer 프레임 (14바이트 + Payload)**
 - **EtherType**: 상위 계층 구분 (0x0800=IP, 0x0806=ARP)
 ```
 ┌──────────────┬──────────────┬──────────┬─────────────┐
@@ -163,3 +187,39 @@ AA:AA:AA:AA:AA:AA                            BB:BB:BB:BB:BB:BB
 1. **계층 구조 준수**: 각 계층이 독립적으로 동작하며 인터페이스로만 통신
 2. **확장성**: Protocol 번호만 추가하면 다른 앱(예: 보이스톡)도 쉽게 추가 가능
 3. **완성도**: 단순 전송을 넘어 **암호화, 우선순위, 모니터링**까지 갖춘 완성형 프로토콜 스택
+
+---
+
+## 6️⃣ 주요 코드 링크 (Source Code Links)
+
+발표 시 빠른 코드 참조를 위한 링크 모음입니다.
+
+### 📁 L7: Application Layer
+- **ChatAppLayer**
+  - [sendMessage()](https://github.com/qoweh/network_homework/blob/main/last/src/main/java/com/demo/ChatAppLayer.java#L366-L418) - 메시지 전송 (암호화, 헤더 추가)
+  - [Receive()](https://github.com/qoweh/network_homework/blob/main/last/src/main/java/com/demo/ChatAppLayer.java#L453-L523) - 메시지 수신 (복호화, 큐잉)
+- **FileAppLayer**
+  - [sendFile()](https://github.com/qoweh/network_homework/blob/main/last/src/main/java/com/demo/FileAppLayer.java#L132-L182) - 파일 분할 전송
+  - [Receive()](https://github.com/qoweh/network_homework/blob/main/last/src/main/java/com/demo/FileAppLayer.java#L252-L280) - 파일 조각 수신 및 재조립
+
+### 📁 L3: Network Layer
+- **IPLayer**
+  - [Send()](https://github.com/qoweh/network_homework/blob/main/last/src/main/java/com/demo/IPLayer.java#L222-L295) - IP 헤더 생성, ARP 조회
+  - [Receive()](https://github.com/qoweh/network_homework/blob/main/last/src/main/java/com/demo/IPLayer.java#L312-L405) - IP 헤더 파싱, 프로토콜 역다중화
+
+### 📁 L2: Data Link Layer
+- **EthernetLayer**
+  - [Send()](https://github.com/qoweh/network_homework/blob/main/last/src/main/java/com/demo/EthernetLayer.java#L138-L165) - 이더넷 프레임 생성
+  - [Receive()](https://github.com/qoweh/network_homework/blob/main/last/src/main/java/com/demo/EthernetLayer.java#L182-L288) - MAC 필터링, EtherType 역다중화
+- **ARPLayer**
+  - [sendArpRequest()](https://github.com/qoweh/network_homework/blob/main/last/src/main/java/com/demo/ARPLayer.java#L128-L163) - ARP 요청 패킷 생성
+  - [Receive()](https://github.com/qoweh/network_homework/blob/main/last/src/main/java/com/demo/ARPLayer.java#L309-L383) - ARP 응답 처리 및 캐시 업데이트
+
+### 📁 L1: Physical Layer
+- **PhysicalLayer**
+  - [Send()](https://github.com/qoweh/network_homework/blob/main/last/src/main/java/com/demo/PhysicalLayer.java#L157-L167) - NIC로 패킷 전송
+  - [run()](https://github.com/qoweh/network_homework/blob/main/last/src/main/java/com/demo/PhysicalLayer.java#L199-L244) - 백그라운드 수신 루프 (pcap.dispatch)
+
+---
+
+## 7️⃣ 예상 질문 및 답변 (Q&A)
