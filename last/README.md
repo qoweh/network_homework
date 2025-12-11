@@ -16,7 +16,11 @@ sudo ./run.sh
 docker-compose up --build
 ```
 
-## ✨ 새로운 기능 (3가지)
+## ⭐ 최종 프로젝트: Last
+
+![UI Screenshot](UI.png)
+
+### 새로운 기능 (3가지)
 
 | 기능 | 구현 위치 | 설명 |
 |------|----------|------|
