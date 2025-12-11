@@ -182,6 +182,8 @@ public class EthernetLayer implements BaseLayer {
         if (input.length < HEADER_SIZE) return false;
         
         // 2. 프레임 레벨 중복 체크 (해시 기반)
+        // 방금 처리한 패킷과 똑같은 패킷이 또 오면 무시
+        // 이유: 네트워크 환경에 따라 내가 보낸 패킷이 나에게 다시 돌아오거나(Loopback), 스위치에서 복제되어 들어올 수 있습니다. 이를 방지하여 불필요한 처리를 막습니다.
         int frameHash = Arrays.hashCode(input);
         if (recentFrameHashes.contains(frameHash)) {
             System.out.println("[Ethernet] 중복 프레임 감지 - 드롭 (hash=" + frameHash + ", length=" + input.length + ")");
@@ -201,7 +203,7 @@ public class EthernetLayer implements BaseLayer {
             }
         }
         
-        // 3. MAC 주소 분석
+        // 3. MAC 주소 분석(목적지/출발지 확인)
         
         // 브로드캐스트 체크 (목적지가 FF:FF:FF:FF:FF:FF인지)
         boolean isBroadcastFrame = true;
@@ -230,14 +232,17 @@ public class EthernetLayer implements BaseLayer {
             }
         }
 
-        // 3. 자기 수신 방지: 내가 보낸 프레임은 드롭 (출발지 MAC == 내 MAC)
+        // 4. 자기 수신 방지: 내가 보낸 프레임은 드롭 (출발지 MAC == 내 MAC)
+        // 보낸 사람이 '나'라면 버린다
+        // 이유: jNetPcap이나 일부 네트워크 카드는 내가 보낸 패킷을 캡처해서 다시 Receive로 올려보내는 경우가 있습니다. 내가 보낸 말에 내가 대답할 필요는 없으므로 차단합니다.
         if (isSourceMe) {
             // 디버깅: 자기 수신 감지
             // System.out.println("[Ethernet] 자기 수신 방지 - 드롭 (출발지가 자신)");
             return false;
         }
         
-        // 4. 목적지 필터: 나에게 온 것이거나 브로드캐스트만 수락
+        // 5. 목적지 필터: 나에게 온 것이거나 브로드캐스트만 수락
+        // 이유: 같은 네트워크의 다른 사람끼리 주고받는 패킷이 내 랜카드에 들어올 수 있습니다. 내 것이 아니면 굳이 열어볼 필요가 없으므로(보안/성능) 버립니다.
         if (!(isDestinationMe || isBroadcastFrame)) {
             // 디버깅: 필터링된 패킷 정보 출력
             String frameDstMac = String.format("%02X:%02X:%02X:%02X:%02X:%02X",
@@ -253,13 +258,13 @@ public class EthernetLayer implements BaseLayer {
             return false;
         }
 
-        // 5. EtherType 파싱 (빅 엔디안 → 정수 변환)
+        // 6. EtherType 파싱 (빅 엔디안 → 정수 변환)
         int receivedEtherType = ((input[12] & 0xFF) << 8) | (input[13] & 0xFF);
         
-        // 6. 필터 통과 → 헤더 제거 후 페이로드 추출
+        // 7. 필터 통과 → 헤더 제거 후 페이로드 추출
         byte[] payload = Arrays.copyOfRange(input, HEADER_SIZE, input.length);
         
-        // 7. 이더넷 역다중화: EtherType에 따라 상위 계층 선택
+        // 8. 이더넷 역다중화: EtherType에 따라 상위 계층 선택
         boolean delivered = false;
         for (BaseLayer upperLayer : upperLayers) {
             // IPLayer는 0x0800만 처리
