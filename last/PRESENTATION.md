@@ -1,4 +1,4 @@
-# 🖥️ NetworkChatApp 발표 자료 가이드
+# 🖥️ NetworkChatApp 발표 자료
 
 ---
 
