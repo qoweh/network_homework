@@ -45,3 +45,4 @@ IMPLE*.md
 *.log
 *.png
 !diagram.png
+!UI.png

@@ -113,7 +113,7 @@ public class ChatAppLayer implements BaseLayer {
         }
     }
     
-    // ===== 우선순위 큐 =====
+    // ===== 우선순위 큐 =====       // https://developer87.tistory.com/13
     private final PriorityBlockingQueue<PrioritizedMessage> priorityMessageQueue = new PriorityBlockingQueue<>();
     private Thread messageProcessorThread;
     private volatile boolean isProcessorRunning = true;
@@ -216,6 +216,14 @@ public class ChatAppLayer implements BaseLayer {
     
     /**
      * XOR 암호화/복호화 (동일 연산)
+     * a ^ key ^ key = a
+     *
+     * ex) XOR 스왑 알고리즘
+     * a = X, b= Y
+     * a = a ^ b
+     * b = a ^ b
+     * a = a ^ b
+     * -> a = Y, b = X
      */
     private byte[] applyXorEncryption(byte[] data, byte key) {
         byte[] result = new byte[data.length];
@@ -392,6 +400,7 @@ public class ChatAppLayer implements BaseLayer {
         
         for (int seq = 0; seq < fragmentCount; seq++) {
             int offset = seq * MAX_FRAGMENT_SIZE;
+            // 마지막 Fragment는 MAX_FRAGMENT_SIZE보다 작을 수 있으므로 실제 남은 크기와 비교하여 작은 값 선택
             int length = Math.min(MAX_FRAGMENT_SIZE, dataToSend.length - offset);
             byte[] fragment = Arrays.copyOfRange(dataToSend, offset, offset + length);
             

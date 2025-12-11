@@ -235,6 +235,7 @@ public class PhysicalLayer implements BaseLayer, Runnable {
             try {
                 // 한 번에 1개 패킷만 처리하여 지연 시간 최소화
                 // timeout(200ms)에 의존하여 블로킹 방지
+                // https://github.com/slytechs-repos/jnetpcap-wrapper/blob/main/src/main/java/org/jnetpcap/Pcap0_4.java#L635
                 pcap.dispatch(1, handler, this);
             } catch (PcapException ex) {
                 break; // Pcap 에러 발생 시 루프 종료
