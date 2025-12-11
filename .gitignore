@@ -46,3 +46,5 @@ IMPLE*.md
 *.png
 !diagram.png
 !UI.png
+
+done/
